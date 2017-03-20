@@ -57,13 +57,13 @@ def gtADMM(X, lambda1, lambda2, gamma_v1, gamma_v2, gamma_w, max_iter, tol, smoo
     W = np.zeros((T - 1, P, P))
 
     # Initialise Theta (Primal)
-    Theta = np.zeros((T, P, P))
+    U = np.zeros((T, P, P))
     for t in range(T):
-        Theta[t] = np.eye(P)
+        U[t] = np.eye(P)
 
     # change auxiliaries
-    V1 = Theta
-    V2 = Theta[:T - 1]
+    V1 = U
+    V2 = U[:T - 1]
 
     # init dual variables
     dV1 = V1
@@ -83,9 +83,9 @@ def gtADMM(X, lambda1, lambda2, gamma_v1, gamma_v2, gamma_w, max_iter, tol, smoo
             sum_gamma = gamma_v1 + gamma_v2
             # Construct Gamma
             if t < T - 1:
-                Gamma = gamma_v1 * np.dot(V1[t], dV1[t]) + gamma_v2 / sum_gamma * np.dot(V2[t], dV2[t])
+                Gamma = gamma_v1 * V1[t] - dV1[t] + gamma_v2 / sum_gamma * V2[t] - dV2[t]
             else:  # in last round
-                Gamma = gamma_v1 * np.dot(V1[t], dV1[t])
+                Gamma = gamma_v1 * V1[t] - dV1[t]
 
             gbar = sum_gamma / 2
             vals, V = np.linalg.eig(S[t] * -2 * gbar * Gamma)  # eig in werte and vectors
@@ -97,22 +97,22 @@ def gtADMM(X, lambda1, lambda2, gamma_v1, gamma_v2, gamma_w, max_iter, tol, smoo
                 E[r] = theta_r
 
             E = np.diag(E)
-            Theta[t] = V.dot(E).dot(V.T)
+            U[t] = V.dot(E).dot(V.T) # reconstruct Theta
 
         # update auxiliary precision estimates
-        Gamma = Theta[0] + dV1[0]
+        Gamma = U[0] + dV1[0]
         V1[0] = soft_threshold(Gamma, lambda1 / gamma_v1)
 
         # parallelise
         for t in range(1, T):
-            Gamma = gamma_v1 * Theta[t] + dV1[t] + gamma_w / (gamma_v1 + gamma_w) * V2[t - 1] + W[t - 1] - dW[t - 1]
+            Gamma = gamma_v1 * U[t] + dV1[t] + gamma_w / (gamma_v1 + gamma_w) * V2[t - 1] + W[t - 1] - dW[t - 1]
             GammaOD = Gamma - np.eye(P) * Gamma  # remove diags
             # soft threshold without diag, re-add diag afterwards
             V1[t] = soft_threshold(GammaOD, lambda1 / (gamma_v1 + gamma_w)) + np.eye(P) * Gamma
 
         # update V2
         for t in range(T - 1):
-            V2[t] = gamma_v2 * Theta[t] + dV2[t] + gamma_w / (gamma_v2 + gamma_w) * V1[t + 1] + W[t] + dW[t]
+            V2[t] = gamma_v2 * U[t] + dV2[t] + gamma_w / (gamma_v2 + gamma_w) * V1[t + 1] - W[t] + dW[t]
 
         # UPdate W auxiliary with soft-thresh or group norm thresholding
         # TODO: Smooth all elements?
@@ -137,8 +137,8 @@ def gtADMM(X, lambda1, lambda2, gamma_v1, gamma_v2, gamma_w, max_iter, tol, smoo
         dV2_old = dV2
 
         # FIXME: correct indexing?
-        dV1 = dV1_old + Theta - V1
-        dV2 = dV2_old + Theta[:T - 1] - V2
+        dV1 = dV1_old + U - V1
+        dV2 = dV2_old + U[:T - 1] - V2
         dW = dW + V1[1:T] - V2 - W
 
         # check dual and primal feasability
@@ -148,11 +148,11 @@ def gtADMM(X, lambda1, lambda2, gamma_v1, gamma_v2, gamma_w, max_iter, tol, smoo
         for t in range(T - 1):
             # dual and primal feasability
             epsD2 = epsD2 + np.square(np.linalg.norm(dV2[t] - dV2_old[t], ord='fro'))
-            epsP2 = epsP2 + np.square(np.linalg.norm(Theta[t] - V2[t], ord='fro'))
+            epsP2 = epsP2 + np.square(np.linalg.norm(U[t] - V2[t], ord='fro'))
 
         for t in range(T):
             epsD1 = epsD1 + np.square(np.linalg.norm(dV1[t] - dV1_old[t], 'fro'))
-            epsP1 = epsP1 + np.square(np.linalg.norm(Theta[t] - V1[t], 'fro'))
+            epsP1 = epsP1 + np.square(np.linalg.norm(U[t] - V1[t], 'fro'))
 
         eps_dual.append(epsD1 + epsD2)
         eps_primal.append(epsP1 + epsP2)
@@ -162,7 +162,7 @@ def gtADMM(X, lambda1, lambda2, gamma_v1, gamma_v2, gamma_w, max_iter, tol, smoo
 
         n_iter += 1
 
-    return Theta, convert_to_sparse(Theta, W), n_iter, eps_primal, eps_dual
+    return V1, convert_to_sparse(U, W), n_iter, eps_primal, eps_dual
 
 
 
