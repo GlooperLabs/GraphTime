@@ -46,8 +46,10 @@ def gtADMM(X, lambda1, lambda2, gamma_v1, gamma_v2, gamma_w, max_iter, tol, smoo
     tolPrime = tol
     # don't use pre-smoothing
     S = np.zeros((T, P, P))
+    print(X[0] * X[0].T)
     for t in range(T):
-        S[t] = X[t].dot(X[t].T)
+        x = X[t].reshape(-1, 1)
+        S[t] = x.dot(x.T)
     # dev with kernel pre-smoothing maybe?
 
     # differencing aux variable
