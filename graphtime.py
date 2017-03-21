@@ -89,7 +89,7 @@ def gtADMM(X, lambda1, lambda2, gamma_v1, gamma_v2, gamma_w, max_iter, tol, smoo
 
             gbar = sum_gamma / 2
             SGbar = S[t] - sum_gamma * Gamma
-            Sd, L = np.linalg.eig(SGbar)  # eig in werte and vectors
+            Sd, L = np.linalg.eig(SGbar)  # eig values and vectors
 
             E = np.zeros(P)
             for r in range(P):
@@ -123,7 +123,7 @@ def gtADMM(X, lambda1, lambda2, gamma_v1, gamma_v2, gamma_w, max_iter, tol, smoo
                 FGammaN = np.linalg.norm(Gamma, ord='fro')
                 # perform projection
                 W[t - 1] = (Gamma / FGammaN) * np.maximum(FGammaN - (lambda2 / gamma_w), 0)
-        else:
+        elif smoother == 'IFGL':
             for t in range(1, T):
                 Gamma = V1[t] - V2[t - 1] + dW[t - 1]
                 for i in range(P):
@@ -183,6 +183,13 @@ if __name__ == '__main__':
     lambda1I = 0.25
     lambda2I = 2
     Theta, sparse_Theta, n_iter, eps_primal, eps_dual = gtADMM(y, lambda1G, lambda2G, gammas[0], gammas[1], gammas[2], max_iter, tol, smoother, verbose)
+    print(Theta.shape, sparse_Theta.shape)
+    change_point_hist = get_change_points(sparse_Theta, 0.01, T, P)
+    change_points = [i for i, cp in enumerate(change_point_hist) if cp > 0]
+    plot_data_with_cps(y, change_points, ymin=-5, ymax=5)
+
+    smoother = 'IFGL'
+    Theta, sparse_Theta, n_iter, eps_primal, eps_dual = gtADMM(y, lambda1I, lambda2I, gammas[0], gammas[1], gammas[2], max_iter, tol, smoother, verbose)
     print(Theta.shape, sparse_Theta.shape)
     change_point_hist = get_change_points(sparse_Theta, 0.01, T, P)
     change_points = [i for i, cp in enumerate(change_point_hist) if cp > 0]
