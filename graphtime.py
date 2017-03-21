@@ -47,12 +47,9 @@ def gtADMM(X, lambda1, lambda2, gamma_v1, gamma_v2, gamma_w, max_iter, tol, smoo
     # don't use pre-smoothing
     S = np.zeros((T, P, P))
     for t in range(T):
-        S[t] = X[t] * X[t].T
+        S[t] = X[t].dot(X[t].T)
     # dev with kernel pre-smoothing maybe?
 
-    # auxiliary variables
-    V1 = np.zeros((T, P, P))
-    V2 = np.zeros((T - 1, P, P))
     # differencing aux variable
     W = np.zeros((T - 1, P, P))
 
@@ -89,7 +86,8 @@ def gtADMM(X, lambda1, lambda2, gamma_v1, gamma_v2, gamma_w, max_iter, tol, smoo
                 Gamma = gamma_v1 * (V1[t] - dV1[t])
 
             gbar = sum_gamma / 2
-            Sd, L = np.linalg.eig(S[t] * -2 * gbar * Gamma)  # eig in werte and vectors
+            SGbar = S[t] - sum_gamma * Gamma
+            Sd, L = np.linalg.eig(SGbar)  # eig in werte and vectors
 
             E = np.zeros(P)
             for r in range(P):
