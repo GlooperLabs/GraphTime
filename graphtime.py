@@ -62,13 +62,13 @@ def gtADMM(X, lambda1, lambda2, gamma_v1, gamma_v2, gamma_w, max_iter, tol, smoo
         U[t] = np.eye(P)
 
     # change auxiliaries
-    V1 = U
-    V2 = U[:T - 1]
+    V1 = U.copy()
+    V2 = U[:T - 1].copy()
 
     # init dual variables
-    dV1 = V1
-    dV2 = V2
-    dW = W
+    dV1 = V1.copy()
+    dV2 = V2.copy()
+    dW = W.copy()
 
     n_iter = 0
 
