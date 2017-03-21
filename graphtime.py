@@ -82,41 +82,48 @@ def gtADMM(X, lambda1, lambda2, gamma_v1, gamma_v2, gamma_w, max_iter, tol, smoo
         for t in range(T):
             sum_gamma = gamma_v1 + gamma_v2
             # Construct Gamma
+            # (gv1.*(V1(:,:,t)-dV1(:,:,t))+gv2.*(V2(:,:,t)-dV2(:,:,t)))./(gv1+gv2)
             if t < T - 1:
-                Gamma = gamma_v1 * V1[t] - dV1[t] + gamma_v2 / sum_gamma * V2[t] - dV2[t]
+                Gamma = (gamma_v1 * (V1[t] - dV1[t]) + gamma_v2 * (V2[t] - dV2[t])) / sum_gamma
             else:  # in last round
-                Gamma = gamma_v1 * V1[t] - dV1[t]
+                Gamma = gamma_v1 * (V1[t] - dV1[t])
 
             gbar = sum_gamma / 2
-            vals, V = np.linalg.eig(S[t] * -2 * gbar * Gamma)  # eig in werte and vectors
+            Sd, L = np.linalg.eig(S[t] * -2 * gbar * Gamma)  # eig in werte and vectors
 
             E = np.zeros(P)
             for r in range(P):
-                sr = vals[r]
+                sr = Sd[r]
                 theta_r = (sr - np.sqrt(sr ** 2 + 8 * gbar)) / (-4 * gbar)
                 E[r] = theta_r
 
             E = np.diag(E)
-            U[t] = V.dot(E).dot(V.T) # reconstruct Theta
+            U[t] = L.dot(E).dot(L.T) # reconstruct Theta
 
         # update auxiliary precision estimates
         Gamma = U[0] + dV1[0]
         V1[0] = soft_threshold(Gamma, lambda1 / gamma_v1)
 
+        """
+    parfor t=1:T-1
+        V2(:,:,t) = squeeze( gv2.*(U(:,:,t)+dV2(:,:,t))+...
+        gw.*(V1(:,:,t+1)-W(:,:,t)+dW(:,:,t)))./(gw+gv2);
+    end
+        end"""
+
         # parallelise
         for t in range(1, T):
-            Gamma = gamma_v1 * U[t] + dV1[t] + gamma_w / (gamma_v1 + gamma_w) * V2[t - 1] + W[t - 1] - dW[t - 1]
+            Gamma = (gamma_v1 * (U[t] + dV1[t]) + gamma_w * (V2[t-1] + W[t-1] - dW[t-1])) / (gamma_v1 + gamma_w)
             GammaOD = Gamma - np.eye(P) * Gamma  # remove diags
             # soft threshold without diag, re-add diag afterwards
             V1[t] = soft_threshold(GammaOD, lambda1 / (gamma_v1 + gamma_w)) + np.eye(P) * Gamma
 
         # update V2
         for t in range(T - 1):
-            V2[t] = gamma_v2 * U[t] + dV2[t] + gamma_w / (gamma_v2 + gamma_w) * V1[t + 1] - W[t] + dW[t]
+            V2[t] = (gamma_v2 * (U[t] + dV2[t]) + gamma_w * (V1[t + 1] - W[t] + dW[t])) / (gamma_v2 + gamma_w)
 
         # UPdate W auxiliary with soft-thresh or group norm thresholding
         # TODO: Smooth all elements?
-        # Lam = (lambda2 / gamma_w) * np.ones((P, P))
         if smoother == 'GFGL':
             for t in range(1, T):
                 Gamma = V1[t] - V2[t - 1] + dW[t - 1]
@@ -147,12 +154,16 @@ def gtADMM(X, lambda1, lambda2, gamma_v1, gamma_v2, gamma_w, max_iter, tol, smoo
         # calculate convergence metrics (parallelize)
         for t in range(T - 1):
             # dual and primal feasability
-            epsD2 = epsD2 + np.square(np.linalg.norm(dV2[t] - dV2_old[t], ord='fro'))
-            epsP2 = epsP2 + np.square(np.linalg.norm(U[t] - V2[t], ord='fro'))
+            norm_delta_dV2 = np.linalg.norm(dV2[t] - dV2_old[t], ord='fro')
+            epsD2 = epsD2 + norm_delta_dV2 ** 2
+            norm_delta_UV2 = np.linalg.norm(U[t] - V2[t], ord='fro')
+            epsP2 = epsP2 + norm_delta_UV2 ** 2
 
         for t in range(T):
-            epsD1 = epsD1 + np.square(np.linalg.norm(dV1[t] - dV1_old[t], 'fro'))
-            epsP1 = epsP1 + np.square(np.linalg.norm(U[t] - V1[t], 'fro'))
+            norm_delta_dV1 = np.linalg.norm(dV1[t] - dV1_old[t], ord='fro')
+            epsD1 = epsD1 + norm_delta_dV1 ** 2
+            norm_delta_UV1 = np.linalg.norm(U[t] - V1[t], ord='fro')
+            epsP1 = epsP1 + norm_delta_UV1 ** 2
 
         eps_dual.append(epsD1 + epsD2)
         eps_primal.append(epsP1 + epsP2)
@@ -174,8 +185,8 @@ if __name__ == '__main__':
     tol = 1e-4
     max_iter = 500
     gammas = [1, 1, 1]  # gamma_V1, gamma_V2, gamma_W
-    lambda1G = 0.5
-    lambda2G = 30
+    lambda1G = 0.15
+    lambda2G = 25
     lambda1I = 0.25
     lambda2I = 2
     Theta, sparse_Theta, n_iter, eps_primal, eps_dual = gtADMM(y, lambda1G, lambda2G, gammas[0], gammas[1], gammas[2], max_iter, tol, smoother, verbose)
