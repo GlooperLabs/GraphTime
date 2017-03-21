@@ -104,13 +104,6 @@ def gtADMM(X, lambda1, lambda2, gamma_v1, gamma_v2, gamma_w, max_iter, tol, smoo
         Gamma = U[0] + dV1[0]
         V1[0] = soft_threshold(Gamma, lambda1 / gamma_v1)
 
-        """
-    parfor t=1:T-1
-        V2(:,:,t) = squeeze( gv2.*(U(:,:,t)+dV2(:,:,t))+...
-        gw.*(V1(:,:,t+1)-W(:,:,t)+dW(:,:,t)))./(gw+gv2);
-    end
-        end"""
-
         # parallelise
         for t in range(1, T):
             Gamma = (gamma_v1 * (U[t] + dV1[t]) + gamma_w * (V2[t-1] + W[t-1] - dW[t-1])) / (gamma_v1 + gamma_w)
@@ -140,8 +133,8 @@ def gtADMM(X, lambda1, lambda2, gamma_v1, gamma_v2, gamma_w, max_iter, tol, smoo
                         W[t - 1, j, i] = W[t - 1, i, j]
 
         # update dual variables
-        dV1_old = dV1
-        dV2_old = dV2
+        dV1_old = dV1.copy()
+        dV2_old = dV2.copy()
 
         # FIXME: correct indexing?
         dV1 = dV1_old + U - V1
