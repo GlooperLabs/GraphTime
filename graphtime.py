@@ -188,7 +188,6 @@ if __name__ == '__main__':
 
     smoother = 'IFGL'
     Theta, sparse_Theta, n_iter, eps_primal, eps_dual = gtADMM(y, lambda1I, lambda2I, gammas[0], gammas[1], gammas[2], max_iter, tol, smoother, verbose)
-    print(Theta.shape, sparse_Theta.shape)
     change_point_hist = get_change_points(sparse_Theta, 0.01, T, P)
     change_points = [i for i, cp in enumerate(change_point_hist) if cp > 0]
     plot_data_with_cps(y, change_points, ymin=-5, ymax=5)
