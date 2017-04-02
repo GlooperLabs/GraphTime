@@ -50,6 +50,8 @@ class DynamicGraphLasso:
         while (eps_primal[n_iter] > self.tol and eps_dual[n_iter] > self.tol
                and n_iter < self.max_iter):
 
+            # Copy old primal estimate to check convergence (later)
+            U_old = U.copy()
             # solve step 1 data-update through eigen decomposition
             for t in range(T):
                 sum_gamma = self.gamma1 + self.gamma2
@@ -110,24 +112,26 @@ class DynamicGraphLasso:
             dW = dW + V1[1:T] - V2 - W
 
             # check dual and primal feasability
-            epsD1 = epsD2 = epsP1 = epsP2 = 0
+            epsD1 = epsD2 = epsP1 = 0
 
+            # There was an error here where the primal and dual convergence
+            # criteria are the same
             # calculate convergence metrics (parallelize)
             for t in range(T - 1):
                 # dual and primal feasability
+                # There should be two dual norms but only one primal.
                 norm_delta_dV2 = np.linalg.norm(dV2[t] - dV2_old[t], ord='fro')
                 epsD2 = epsD2 + norm_delta_dV2 ** 2
-                norm_delta_UV2 = np.linalg.norm(U[t] - V2[t], ord='fro')
-                epsP2 = epsP2 + norm_delta_UV2 ** 2
 
             for t in range(T):
                 norm_delta_dV1 = np.linalg.norm(dV1[t] - dV1_old[t], ord='fro')
                 epsD1 = epsD1 + norm_delta_dV1 ** 2
-                norm_delta_UV1 = np.linalg.norm(U[t] - V1[t], ord='fro')
-                epsP1 = epsP1 + norm_delta_UV1 ** 2
-
+                # Calculate convergence (in U, the primal variable)
+                norm_delta_U = np.linalg.norm(U[t] - U_old[t], ord='fro')
+                epsP1 = epsP1 + norm_delta_U ** 2
+              
             eps_dual.append(epsD1 + epsD2)
-            eps_primal.append(epsP1 + epsP2)
+            eps_primal.append(epsP1)
 
             if self.verbose:
                 print('iteration', n_iter, 'Prime: ', eps_primal[-1], ' Dual: ', eps_dual[-1])
