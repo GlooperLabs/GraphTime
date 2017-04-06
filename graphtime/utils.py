@@ -4,6 +4,7 @@ import numpy as np
 
 def get_edges(G, eps, P=None):
     # get edges of adjacency matrix G
+    # TODO: make use of array mask here
     P = P or G.shape[0]
     return [(i, j) for i in range(P-1) for j in range(i+1, P) if abs(G[i, j]) > eps]
 
@@ -23,6 +24,36 @@ def plot_data_with_cps(data, cps, ymin, ymax):
         plt.plot([cp, cp], [ymin, ymax], 'k-')
     plt.axis([0, len(data), ymin, ymax], 'k-')
     plt.show()
+
+
+def precision(G_est, G_true, eps=1e-6):
+    assert len(G_est) == len(G_true)
+    n = len(G_est)
+    precision = 0
+    for i in range(n):
+        est_edges = set(get_edges(G_est[i], eps))
+        gt_edges = set(get_edges(G_true[i], eps))
+        n_joint = len(est_edges.intersection(gt_edges))
+        precision += n_joint / len(est_edges)
+    return precision / n
+
+
+def recall(G_est, G_true, eps=1e-6):
+    assert len(G_est) == len(G_true)
+    n = len(G_est)
+    recall = 0
+    for i in range(n):
+        est_edges = set(get_edges(G_est[i], eps))
+        gt_edges = set(get_edges(G_true[i], eps))
+        n_joint = len(est_edges.intersection(gt_edges))
+        recall += n_joint / len(gt_edges)
+    return recall / n
+
+
+def f1_score(G_est, G_true, eps=1e-6):
+    prec = precision(G_est, G_true, eps)
+    rec = recall(G_est, G_true, eps)
+    return (2*prec*rec) / (prec+rec)
 
 
 # BELOW IS UNTESTED
@@ -91,7 +122,7 @@ def plot_data_with_cps(data, cps, ymin, ymax):
 #         for j in range(i + 1, P):
 #             if Theta[i, j] > thresh:
 #                 count = count + 1
-    
+
 #     #Count diagonals
 #     count = count + P
 
