@@ -26,34 +26,38 @@ def plot_data_with_cps(data, cps, ymin, ymax):
     plt.show()
 
 
-def precision(G_est, G_true, eps=1e-6):
+def precision(G_est, G_true, eps=1e-6, per_ts=False):
     assert len(G_est) == len(G_true)
     n = len(G_est)
-    precision = 0
+    precision = [] if per_ts else 0
     for i in range(n):
         est_edges = set(get_edges(G_est[i], eps))
         gt_edges = set(get_edges(G_true[i], eps))
         n_joint = len(est_edges.intersection(gt_edges))
-        precision += n_joint / len(est_edges)
-    return precision / n
+        precision += n_joint / len(est_edges) if n_joint > 0 else 0
+    return np.array(precision) if per_ts else precision / n
 
 
-def recall(G_est, G_true, eps=1e-6):
+def recall(G_est, G_true, eps=1e-6, per_ts=False):
     assert len(G_est) == len(G_true)
     n = len(G_est)
-    recall = 0
+    recall = [] if per_ts else 0
     for i in range(n):
         est_edges = set(get_edges(G_est[i], eps))
         gt_edges = set(get_edges(G_true[i], eps))
         n_joint = len(est_edges.intersection(gt_edges))
-        recall += n_joint / len(gt_edges)
-    return recall / n
+        recall += n_joint / len(gt_edges) if n_joint > 0 else 0
+    return np.array(recall) if per_ts else recall / n
 
 
-def f1_score(G_est, G_true, eps=1e-6):
-    prec = precision(G_est, G_true, eps)
-    rec = recall(G_est, G_true, eps)
-    return (2*prec*rec) / (prec+rec)
+def f1_score(G_est, G_true, eps=1e-6, per_ts=False):
+    prec = precision(G_est, G_true, eps, per_ts)
+    rec = recall(G_est, G_true, eps, per_ts)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        nom = 2 * prec * rec
+        den = prec + rec
+        f1 = np.nan_to_num(np.true_divide(nom, den))
+    return f1
 
 
 # BELOW IS UNTESTED
