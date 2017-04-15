@@ -1,3 +1,5 @@
+from multiprocessing import Pool, cpu_count
+from itertools import product, repeat
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -34,7 +36,8 @@ def precision(G_est, G_true, eps=1e-6, per_ts=False):
         est_edges = set(get_edges(G_est[i], eps))
         gt_edges = set(get_edges(G_true[i], eps))
         n_joint = len(est_edges.intersection(gt_edges))
-        precision += n_joint / len(est_edges) if n_joint > 0 else 0
+        latest = n_joint / len(est_edges) if n_joint > 0 else 0
+        precision += [latest] if per_ts else latest
     return np.array(precision) if per_ts else precision / n
 
 
@@ -46,7 +49,8 @@ def recall(G_est, G_true, eps=1e-6, per_ts=False):
         est_edges = set(get_edges(G_est[i], eps))
         gt_edges = set(get_edges(G_true[i], eps))
         n_joint = len(est_edges.intersection(gt_edges))
-        recall += n_joint / len(gt_edges) if n_joint > 0 else 0
+        latest = n_joint / len(gt_edges) if n_joint > 0 else 0
+        recall += [latest] if per_ts else latest
     return np.array(recall) if per_ts else recall / n
 
 
@@ -58,6 +62,34 @@ def f1_score(G_est, G_true, eps=1e-6, per_ts=False):
         den = prec + rec
         f1 = np.nan_to_num(np.true_divide(nom, den))
     return f1
+
+
+def performance(G_est, G_true):
+    prec = precision(G_est, G_true)
+    rec = recall(G_est, G_true)
+    f1 = f1_score(G_est, G_true)
+    return prec, rec, f1
+
+
+def grid_search(model, y, G_true, lam1s, lam2s, tol=1e-4, max_iter=500,
+                gamma1=1, gamma2=1, gammaw=1, n_processes='max'):
+    performances = dict()
+    n_processes = max(cpu_count()-1, 1) if n_processes == 'max' else n_processes
+    settings = repeat((gamma1, gamma2, gammaw, tol, max_iter))
+    lam_cross = product(lam1s, lam2s)
+    with Pool(n_processes) as pool:
+        arguments = [(model, y, G_true, *lams, *args)
+                     for lams, args in zip(lam_cross, settings)]
+        perfs = pool.starmap(evaluate, arguments)
+    for perf in perfs:
+        performances.update(perf)
+    return performances
+
+
+def evaluate(model, y, G_true, lam1, lam2, gamma1, gamma2, gammaw, tol, max_iter):
+    dglm = model(lam1, lam2, gamma1, gamma2, gammaw, tol, max_iter)
+    dglm.fit(y)
+    return {(lam1, lam2): performance(dglm.sparse_Theta, G_true)}
 
 
 # BELOW IS UNTESTED
