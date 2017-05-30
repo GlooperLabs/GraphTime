@@ -136,7 +136,14 @@ class ErdosRenyiPrecisionGraph:
         Parameters
         ----------
         seed: int
-            random seed"""
+            random seed
+
+        Returns
+        -------
+        G: ndarray
+            Graph of shape (n_vertices, n_vertices) with
+            n_edges active
+        """
         if seed is not None:
             random.seed(seed)
         G = 0.5 * np.eye(self.n_vertices)
@@ -178,7 +185,7 @@ class ErdosRenyiPrecisionGraph:
         """
         Sigma = np.linalg.inv(Theta)
         V = np.diag(np.sqrt(np.diag(Sigma) ** -1))
-        Sigma = V.dot(Sigma).dot(V.T)
+        Sigma = V.dot(Sigma).dot(V.T)  # = VSV
         Theta = np.linalg.inv(Sigma)
         Theta[Theta <= eps] = 0.
         return Theta, Sigma
