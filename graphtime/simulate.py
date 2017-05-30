@@ -116,8 +116,20 @@ class DynamicGraphSimulation:
 
     @staticmethod
     def _graph_indices(T, changepoints):
-        """ Does this describe which graphs are relevant for
-        a particular time??"""
+        """Describes which graphs are active for each time
+        by returning a list with the graphs indices
+
+        Parameters
+        ----------
+        T: int
+            number of total timesteps
+        changepoints: list[int]
+            list of changepoint indices
+
+        Yields
+        ------
+        Graph indices for all t < T
+        """
         graph = count = 0
         for cp in changepoints:
             while count < cp:
@@ -148,7 +160,7 @@ class ErdosRenyiPrecisionGraph:
 
     @property
     def is_PSD(self):
-        if self.Theta == None:
+        if self.Theta is None:
             return False
         try:
             np.linalg.cholesky(self.Theta)
@@ -159,7 +171,13 @@ class ErdosRenyiPrecisionGraph:
     @property
     def gexf(self):
         """Associates a GEXF file with the corresponding
-        precision matrix. Useful for plotting"""
+        precision matrix. Useful for plotting
+
+        Returns
+        -------
+        gexf: str
+            Gexf formatted graph string
+        """
         gexf = '<gexf xmlns="http://www.gexf.net/1.2draft" version="1.2">'
         gexf = gexf + '<graph mode="static" defaultedgetype="undirected">'
         gexf = gexf + '<nodes>'
