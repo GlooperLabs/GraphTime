@@ -2,12 +2,19 @@ import random
 from math import ceil
 import numpy as np
 
+# Required for converting precision to adjacency
+from graphtime.utils import get_edges
+
 
 class DynamicGraphSimulation:
 
     def __init__(self, n_vertices):
         self.n_vertices = n_vertices
         self.graphs = None
+        # So we can assign names to nodes should match number of nodes..
+        self.labels = None
+        # Should we also track changepoint positions?
+        self.changepoints = None
 
     @property
     def n_graphs(self):
@@ -88,6 +95,8 @@ class DynamicGraphSimulation:
 
     @staticmethod
     def _graph_indices(T, changepoints):
+        """ Does this describe which graphs are relevant for
+        a particular time??"""
         graph = count = 0
         for cp in changepoints:
             while count < cp:
@@ -99,14 +108,12 @@ class DynamicGraphSimulation:
             yield graph
 
 
-
 class ErdosRenyiPrecisionGraph:
     """Creates and Erdos Renyi Adjacency Matrix on initialisation,
     which conforms to the definition of a precision matrix. The
     precision matrix is created based on the defined Erdos
     Renyi graph G(n, M), so drawn uniform at random from all
     graphs with n vertices and M active edges.
-
     The variance, i.e. the diagonal entries of Theta's inverse,
     are all ones."""
 
@@ -114,9 +121,11 @@ class ErdosRenyiPrecisionGraph:
         self.n_vertices = n_vertices
         self.n_edges = n_edges
         self.Theta = None
+        self.Gexf = None
         while not self.is_PSD:
             self.Theta = self.make_precision_graph(seed)
         self.Theta, self.Sigma = self.scale_variance(self.Theta, eps)
+        self.Gexf = self.update_gexf()  # Added GEXF file for graph
 
     @property
     def is_PSD(self):
@@ -182,3 +191,28 @@ class ErdosRenyiPrecisionGraph:
         Theta = np.linalg.inv(Sigma)
         Theta[Theta <= eps] = 0.
         return Theta, Sigma
+
+    def update_gexf(self):
+        """ Associates a GEXF file with the corresponding
+        precision matrix. Useful for plotting"""
+
+        gexf = '<gexf xmlns="http://www.gexf.net/1.2draft" version="1.2">'
+        gexf = gexf + '<graph mode="static" defaultedgetype="undirected">'
+        gexf = gexf + '<nodes>'
+
+        for nid in range(self.Theta.shape[0]):
+            gexf = gexf + '<node id="' + str(nid) + '" />'
+
+        gexf = gexf + '</nodes><edges>'     # Finish adding nodes
+
+        # Find active edges above thresh
+        thresh = 0.00001
+        eid = 0
+        # Uses function from utils
+        edges = get_edges(self.Theta, thresh)
+        while eid < len(edges):
+            gexf = gexf + '<edge id="' + str(edges[eid]) + '">'
+            eid += 1
+
+        gexf = gexf + '</edges></graph></gexf>'   # Close off file..
+        return gexf
