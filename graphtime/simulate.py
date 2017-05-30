@@ -1,24 +1,45 @@
 import random
 from math import ceil
 import numpy as np
-
-# Required for converting precision to adjacency
 from graphtime.utils import get_edges
 
 
 class DynamicGraphSimulation:
+    """
+    Parameters
+    ----------
+    n_vertices: int
+        number of vertices
+    labels: list[str]
+        list of string denoting the names of vertices
 
-    def __init__(self, n_vertices):
+    Attributes
+    ----------
+    n_vertices: int
+        number of vertices
+    labels: list[str]
+        list of string denoting the names of vertices
+    graphs: list[ErdosRenyiPrecisionGraph]
+    changepoints: list[int]
+        list of integers denoting the changepoint indices
+    """
+
+    def __init__(self, n_vertices, labels=None):
+        if labels is not None:
+            assert len(labels) == n_vertices
+
         self.n_vertices = n_vertices
         self.graphs = None
-        # So we can assign names to nodes should match number of nodes..
-        self.labels = None
-        # Should we also track changepoint positions?
+        self.labels = labels
         self.changepoints = None
 
     @property
     def n_graphs(self):
         return len(self.graphs)
+
+    @property
+    def n_changepoints(self):
+        return len(self.changepoints)
 
     def create_graphs(self, n_edges_list, seed=None):
         """For each number of edges (n_edges) in n_edges_list create
@@ -121,11 +142,9 @@ class ErdosRenyiPrecisionGraph:
         self.n_vertices = n_vertices
         self.n_edges = n_edges
         self.Theta = None
-        self.Gexf = None
         while not self.is_PSD:
             self.Theta = self.make_precision_graph(seed)
         self.Theta, self.Sigma = self.scale_variance(self.Theta, eps)
-        self.Gexf = self.update_gexf()  # Added GEXF file for graph
 
     @property
     def is_PSD(self):
@@ -136,6 +155,31 @@ class ErdosRenyiPrecisionGraph:
             return True
         except np.linalg.LinAlgError:
             return False
+
+    @property
+    def gexf(self):
+        """Associates a GEXF file with the corresponding
+        precision matrix. Useful for plotting"""
+        gexf = '<gexf xmlns="http://www.gexf.net/1.2draft" version="1.2">'
+        gexf = gexf + '<graph mode="static" defaultedgetype="undirected">'
+        gexf = gexf + '<nodes>'
+
+        for nid in range(self.Theta.shape[0]):
+            gexf = gexf + '<node id="' + str(nid) + '" />'
+
+        gexf = gexf + '</nodes><edges>'  # Finish adding nodes
+
+        # Find active edges above thresh
+        thresh = 0.00001
+        eid = 0
+        # Uses function from utils
+        edges = get_edges(self.Theta, thresh)
+        while eid < len(edges):
+            gexf = gexf + '<edge id="' + str(edges[eid]) + '">'
+            eid += 1
+
+        gexf = gexf + '</edges></graph></gexf>'  # Close off file..
+        return gexf
 
     def make_precision_graph(self, seed):
         """Create an Erdos Renyi Graph G(n_vertices, n_edges) and
@@ -198,28 +242,3 @@ class ErdosRenyiPrecisionGraph:
         Theta = np.linalg.inv(Sigma)
         Theta[Theta <= eps] = 0.
         return Theta, Sigma
-
-    def update_gexf(self):
-        """ Associates a GEXF file with the corresponding
-        precision matrix. Useful for plotting"""
-
-        gexf = '<gexf xmlns="http://www.gexf.net/1.2draft" version="1.2">'
-        gexf = gexf + '<graph mode="static" defaultedgetype="undirected">'
-        gexf = gexf + '<nodes>'
-
-        for nid in range(self.Theta.shape[0]):
-            gexf = gexf + '<node id="' + str(nid) + '" />'
-
-        gexf = gexf + '</nodes><edges>'     # Finish adding nodes
-
-        # Find active edges above thresh
-        thresh = 0.00001
-        eid = 0
-        # Uses function from utils
-        edges = get_edges(self.Theta, thresh)
-        while eid < len(edges):
-            gexf = gexf + '<edge id="' + str(edges[eid]) + '">'
-            eid += 1
-
-        gexf = gexf + '</edges></graph></gexf>'   # Close off file..
-        return gexf
