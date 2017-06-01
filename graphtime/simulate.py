@@ -4,6 +4,9 @@ import numpy as np
 from graphtime.utils import get_edges
 
 
+# TODO make DynamicGraphSimulation aware of its previously used changepoints
+
+
 class DynamicGraphSimulation:
     """
     Parameters
@@ -24,24 +27,28 @@ class DynamicGraphSimulation:
         list of integers denoting the changepoint indices
     """
 
-    def __init__(self, n_vertices, labels=None):
+    def __init__(self, n_vertices, labels=None, seed=None):
         if labels is not None:
             assert len(labels) == n_vertices
-
         self.n_vertices = n_vertices
         self.graphs = None
         self.labels = labels
         self.changepoints = None
+        self.seed = seed
 
     @property
     def n_graphs(self):
-        return len(self.graphs)
+        if self.graphs is not None:
+            return len(self.graphs)
+        return 0
 
     @property
     def n_changepoints(self):
-        return len(self.changepoints)
+        if self.changepoints is not None:
+            return len(self.changepoints)
+        return 0
 
-    def create_graphs(self, n_edges_list, seed=None):
+    def create_graphs(self, n_edges_list):
         """For each number of edges (n_edges) in n_edges_list create
         an Erdos Renyi Precision Graph that allows us to sample
         from later.
@@ -51,11 +58,9 @@ class DynamicGraphSimulation:
         n_edges: list[int] or int
             list of number of edges for each graph or scalar
             if only one graph is wanted
-        seed: int
-            random seed
         """
-        if seed is not None:
-            random.seed(seed)
+        if self.seed is not None:
+            random.seed(self.seed)
 
         n_edges = n_edges_list if type(n_edges_list) is list \
             else [n_edges_list]
@@ -104,6 +109,9 @@ class DynamicGraphSimulation:
             changepoints = range(eq_dist, T, step=eq_dist)
         else:
             raise ValueError('Either Changepoints have to be specified or uniform')
+
+        if self.seed is not None:
+            np.random.seed(self.seed)
 
         S = np.zeros((T, self.n_vertices))
         mu = np.zeros(self.n_vertices)
@@ -258,5 +266,5 @@ class ErdosRenyiPrecisionGraph:
         V = np.diag(np.sqrt(np.diag(Sigma) ** -1))
         Sigma = V.dot(Sigma).dot(V.T)  # = VSV
         Theta = np.linalg.inv(Sigma)
-        Theta[Theta <= eps] = 0.
+        Theta[np.abs(Theta) <= eps] = 0.
         return Theta, Sigma
