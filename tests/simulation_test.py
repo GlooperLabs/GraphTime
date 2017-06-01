@@ -48,5 +48,65 @@ class ErdosRenyiTest(unittest.TestCase):
 
 
 class DynamicGraphTest(unittest.TestCase):
-    pass
+
+    def test_init(self):
+        n_vertices = 3
+        labels = ['l1', 'l2', 'l3']
+        DGS = DynamicGraphSimulation(n_vertices, labels)
+        self.assertEqual(DGS.n_vertices, n_vertices)
+        self.assertEqual(DGS.labels, labels)
+        with self.assertRaises(AssertionError):
+            DynamicGraphSimulation(5, ['l1'])
+
+    def test_properties(self):
+        n_vertices = 3
+        DGS = DynamicGraphSimulation(n_vertices)
+        self.assertEqual(DGS.n_graphs, 0)
+        self.assertEqual(DGS.n_changepoints, 0)
+        DGS.graphs = [1, 2, 3]
+        DGS.changepoints = [2, 3]
+        self.assertEqual(DGS.n_graphs, 3)
+        self.assertEqual(DGS.n_changepoints, 2)
+
+    def test_graph_indices(self):
+        T = 10
+        changepoints = [3, 6]
+        expected = [0, 0, 0, 1, 1, 1, 2, 2, 2, 2]
+        self.assertEqual(len(expected), T)
+        calc = list(DynamicGraphSimulation._graph_indices(T, changepoints))
+        self.assertEqual(calc, expected)
+
+    def test_single_graph_creation(self):
+        n_vertices = 4
+        DGS = DynamicGraphSimulation(n_vertices, seed=7)
+        self.assertIsNone(DGS.graphs)
+        n_edges = 3
+        DGS.create_graphs(n_edges)
+        self.assertEqual(DGS.n_graphs, 1)
+        self.assertEqual(DGS.n_changepoints, 0)
+        self.assertEqual(DGS.graphs[0].n_vertices, 4)
+        self.assertEqual(DGS.graphs[0].n_edges, 3)
+
+    def test_dynamic_graph_creation(self):
+        n_vertices = 4
+        DGS = DynamicGraphSimulation(n_vertices, seed=7)
+        self.assertIsNone(DGS.graphs)
+        n_edges_list = [2, 4, 1]
+        DGS.create_graphs(n_edges_list)
+        for i, n_edges in enumerate(n_edges_list):
+            self.assertEqual(DGS.graphs[i].n_edges, n_edges)
+            self.assertEqual(DGS.graphs[i].n_vertices, 4)
+
+    def test_creation_seed(self):
+        n_verts, n_edges = 4, 3
+        n_edges_list = [2, 4, 1]
+        DGS1 = DynamicGraphSimulation(n_verts, seed=7)
+        DGS2 = DynamicGraphSimulation(n_verts, seed=7)
+        DGS1.create_graphs(n_edges_list)
+        DGS2.create_graphs(n_edges_list)
+        for i in range(len(n_edges_list)):
+            self.assertTrue(np.allclose(DGS1.graphs[i].Theta, DGS2.graphs[i].Theta))
+
+    def test_sampling(self):
+        pass
 
