@@ -4,10 +4,7 @@ import numpy as np
 from graphtime.utils import get_edges
 
 
-# TODO make DynamicGraphSimulation aware of its previously used changepoints
-
-
-class DynamicGraphSimulation:
+class DynamicGraph:
     """
     Parameters
     ----------
@@ -31,21 +28,14 @@ class DynamicGraphSimulation:
         if labels is not None:
             assert len(labels) == n_vertices
         self.n_vertices = n_vertices
-        self.graphs = None
         self.labels = labels
-        self.changepoints = None
         self.seed = seed
+        self.graphs = None
 
     @property
     def n_graphs(self):
         if self.graphs is not None:
             return len(self.graphs)
-        return 0
-
-    @property
-    def n_changepoints(self):
-        if self.changepoints is not None:
-            return len(self.changepoints)
         return 0
 
     def create_graphs(self, n_edges_list):
@@ -68,7 +58,7 @@ class DynamicGraphSimulation:
         self.graphs = [ErdosRenyiPrecisionGraph(self.n_vertices, n_es)
                        for n_es in n_edges]
 
-    def sample_series(self, T, uniform=True, changepoints=None, ret_cps=False):
+    def sample(self, T, changepoints=None, uniform=True, ret_cps=False):
         """Sample from the created ER Precision graphs. If uniform,
         each graph will approximately generate the same amount of
         samples depending on T. Otherwise a list of changepoints
@@ -79,12 +69,12 @@ class DynamicGraphSimulation:
         ----------
         T: int
             number of timesteps T >> #Graphs should hold
-        uniform: bool
-            indicates if each graph should have approx. same
-            amount of samples (last one might have less dep. on T)
         changepoints: list[int]
             list of changepoints where each value is between 0 and T
             and strictly monotonically increasing
+        uniform: bool
+            indicates if each graph should have approx. same
+            amount of samples (last one might have less dep. on T)
         ret_cps: bool
             whether to return list of true changepoints or not
 
@@ -101,6 +91,7 @@ class DynamicGraphSimulation:
             raise RuntimeError('First have to create graphs (create_graphs)')
         if T < len(self.graphs):
             raise ValueError('Each graph has to contribute at least one sample')
+
         if changepoints is not None:
             if len(changepoints) != self.n_graphs - 1:
                 raise ValueError('Need one changepoint more than the number of Graphs')
