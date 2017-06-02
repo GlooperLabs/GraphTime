@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 
 from graphtime.simulate import ErdosRenyiPrecisionGraph, \
-    DynamicGraph
+    DynamicGraphicalModel
 from graphtime.utils import get_edges
 
 
@@ -52,15 +52,15 @@ class DynamicGraphTest(unittest.TestCase):
     def test_init(self):
         n_vertices = 3
         labels = ['l1', 'l2', 'l3']
-        DGS = DynamicGraph(n_vertices, labels)
+        DGS = DynamicGraphicalModel(n_vertices, labels)
         self.assertEqual(DGS.n_vertices, n_vertices)
         self.assertEqual(DGS.labels, labels)
         with self.assertRaises(AssertionError):
-            DynamicGraph(5, ['l1'])
+            DynamicGraphicalModel(5, ['l1'])
 
     def test_properties(self):
         n_vertices = 3
-        DGS = DynamicGraph(n_vertices)
+        DGS = DynamicGraphicalModel(n_vertices)
         self.assertEqual(DGS.n_graphs, 0)
         DGS.graphs = [1, 2, 3]
         DGS.changepoints = [2, 3]
@@ -71,12 +71,12 @@ class DynamicGraphTest(unittest.TestCase):
         changepoints = [3, 6]
         expected = [0, 0, 0, 1, 1, 1, 2, 2, 2, 2]
         self.assertEqual(len(expected), T)
-        calc = list(DynamicGraph._graph_indices(T, changepoints))
+        calc = list(DynamicGraphicalModel._graph_indices(T, changepoints))
         self.assertEqual(calc, expected)
 
     def test_single_graph_creation(self):
         n_vertices = 4
-        DGS = DynamicGraph(n_vertices, seed=7)
+        DGS = DynamicGraphicalModel(n_vertices, seed=7)
         self.assertIsNone(DGS.graphs)
         n_edges = 3
         DGS.create_graphs(n_edges)
@@ -86,7 +86,7 @@ class DynamicGraphTest(unittest.TestCase):
 
     def test_multiple_graph_creation(self):
         n_vertices = 4
-        DGS = DynamicGraph(n_vertices, seed=7)
+        DGS = DynamicGraphicalModel(n_vertices, seed=7)
         self.assertIsNone(DGS.graphs)
         n_edges_list = [2, 4, 1]
         DGS.create_graphs(n_edges_list)
@@ -97,27 +97,27 @@ class DynamicGraphTest(unittest.TestCase):
     def test_creation_seed(self):
         n_verts, n_edges = 4, 3
         n_edges_list = [2, 4, 1]
-        DGS1 = DynamicGraph(n_verts, seed=7)
-        DGS2 = DynamicGraph(n_verts, seed=7)
+        DGS1 = DynamicGraphicalModel(n_verts, seed=7)
+        DGS2 = DynamicGraphicalModel(n_verts, seed=7)
         DGS1.create_graphs(n_edges_list)
         DGS2.create_graphs(n_edges_list)
         for i in range(len(n_edges_list)):
             self.assertTrue(np.allclose(DGS1.graphs[i].Theta, DGS2.graphs[i].Theta))
 
     def test_sampling_wo_graph(self):
-        DGS = DynamicGraph(5)
+        DGS = DynamicGraphicalModel(5)
         with self.assertRaises(RuntimeError):
             DGS.sample(10)
 
     def test_sampling_too_short(self):
-        DGS = DynamicGraph(5)
+        DGS = DynamicGraphicalModel(5)
         n_edges_list = [2, 4, 1]
         DGS.create_graphs(n_edges_list)
         with self.assertRaises(ValueError):
             DGS.sample(len(n_edges_list) - 1)
 
     def test_sampling_invalid_changepoints(self):
-        DGS = DynamicGraph(5)
+        DGS = DynamicGraphicalModel(5)
         n_edges_list = [2, 4, 1]
         changepoints = [5]
         DGS.create_graphs(n_edges_list)
@@ -125,8 +125,48 @@ class DynamicGraphTest(unittest.TestCase):
             DGS.sample(10, changepoints)
 
     def test_sampling_no_changepoints(self):
-        DGS = DynamicGraph(5)
+        DGS = DynamicGraphicalModel(5)
         n_edges_list = [2, 4, 1]
         DGS.create_graphs(n_edges_list)
         with self.assertRaises(ValueError):
-            DGS.sample(10, uniform=False, changepoints=None)
+            DGS.sample(10, uniform=False)
+
+    def test_uniform_changepoints(self):
+        DGS = DynamicGraphicalModel(5)
+        changepoints = DGS.uniform_changepoints(7, 3)
+        exp_changepoints = [2, 4]
+        self.assertEqual(list(changepoints), exp_changepoints)
+
+    def test_sample_format(self):
+        n_verts, n_edges, T = 4, 3, 15
+        n_edges_list = [2, 4, 1]
+        DGS = DynamicGraphicalModel(n_verts, seed=7)
+        DGS.create_graphs(n_edges_list)
+        S = DGS.sample(T)
+        self.assertEqual(S.shape, (T, n_verts))
+
+    def test_sampling_with_seed(self):
+        n_verts, n_edges = 4, 3
+        n_edges_list = [2, 4, 1]
+        DGS = DynamicGraphicalModel(n_verts, seed=7)
+        DGS.create_graphs(n_edges_list)
+        sample1 = DGS.sample(10, use_seed=True)
+        sample2 = DGS.sample(10, use_seed=True)
+        self.assertTrue(np.allclose(sample1, sample2))
+
+    def test_sampling_wo_seed(self):
+        n_verts, n_edges = 4, 3
+        n_edges_list = [2, 4, 1]
+        DGS = DynamicGraphicalModel(n_verts, seed=7)
+        DGS.create_graphs(n_edges_list)
+        sample1 = DGS.sample(10, use_seed=False)
+        sample2 = DGS.sample(10, use_seed=False)
+        self.assertTrue(~np.allclose(sample1, sample2))
+
+    def test_changepoint_return(self):
+        n_verts, n_edges, T = 4, 3, 15
+        n_edges_list = [2, 4, 1]
+        DGS = DynamicGraphicalModel(n_verts, seed=7)
+        DGS.create_graphs(n_edges_list)
+        S, cps = DGS.sample(T, ret_cps=True)
+        self.assertEqual(len(cps), len(n_edges_list)-1)
