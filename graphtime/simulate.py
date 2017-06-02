@@ -1,27 +1,25 @@
 import random
-from math import ceil
 import numpy as np
 from graphtime.utils import get_edges
 
 
-class DynamicGraph:
-    """
+class DynamicGraphicalModel:
+    """Representation of a dynamic graph, i.e. a list of
+    graphs that represent a process
+
     Parameters
     ----------
-    n_vertices: int
+    n_vertices : int
         number of vertices
-    labels: list[str]
+    labels : list[str]
         list of string denoting the names of vertices
+    seed : int
+        random seed to use when creating random graphs
+        or time series samples from the graphs
 
     Attributes
     ----------
-    n_vertices: int
-        number of vertices
-    labels: list[str]
-        list of string denoting the names of vertices
-    graphs: list[ErdosRenyiPrecisionGraph]
-    changepoints: list[int]
-        list of integers denoting the changepoint indices
+    graphs : list of ErdosRenyiPrecisionGraph
     """
 
     def __init__(self, n_vertices, labels=None, seed=None):
@@ -38,18 +36,20 @@ class DynamicGraph:
             return len(self.graphs)
         return 0
 
-    def create_graphs(self, n_edges_list):
+    def create_graphs(self, n_edges_list, use_seed=True):
         """For each number of edges (n_edges) in n_edges_list create
         an Erdos Renyi Precision Graph that allows us to sample
         from later.
 
         Parameters
         ----------
-        n_edges: list[int] or int
+        n_edges : list[int] or int
             list of number of edges for each graph or scalar
             if only one graph is wanted
+        use_seed : bool
+            indicates if seed shall be reset
         """
-        if self.seed is not None:
+        if use_seed and self.seed is not None:
             random.seed(self.seed)
 
         n_edges = n_edges_list if type(n_edges_list) is list \
@@ -58,33 +58,33 @@ class DynamicGraph:
         self.graphs = [ErdosRenyiPrecisionGraph(self.n_vertices, n_es)
                        for n_es in n_edges]
 
-    def sample(self, T, changepoints=None, uniform=True, ret_cps=False):
+    def sample(self, T, changepoints=None, uniform=True, ret_cps=False, use_seed=True):
         """Sample from the created ER Precision graphs. If uniform,
         each graph will approximately generate the same amount of
         samples depending on T. Otherwise a list of changepoints
         must be given indicating where we have to sample from the
-        next GGM.
+        respective graph.
 
         Parameters
         ----------
         T: int
             number of timesteps T >> #Graphs should hold
-        changepoints: list[int]
+        changepoints : list[int]
             list of changepoints where each value is between 0 and T
             and strictly monotonically increasing
-        uniform: bool
+        uniform : bool
             indicates if each graph should have approx. same
             amount of samples (last one might have less dep. on T)
-        ret_cps: bool
+        ret_cps : bool
             whether to return list of true changepoints or not
+        use_seed : bool
+            indicates if seed shall be used
 
         Returns
         -------
-        S: ndarray
-            Sample array of shape (T, self.n_vertices)
-        Optional
-        --------
-        changepoints: list
+        S: 2D ndarray, shape (timesteps, vertices)
+            Sample of length T from the models graphs
+        changepoints : optional, list[int]
             list of actual changepoints
         """
         if self.graphs is None:
@@ -96,12 +96,11 @@ class DynamicGraph:
             if len(changepoints) != self.n_graphs - 1:
                 raise ValueError('Need one changepoint more than the number of Graphs')
         elif uniform:
-            eq_dist = ceil(T / self.n_graphs)
-            changepoints = range(eq_dist, T, step=eq_dist)
+            changepoints = self.uniform_changepoints(T, self.n_graphs)
         else:
             raise ValueError('Either Changepoints have to be specified or uniform')
 
-        if self.seed is not None:
+        if use_seed and self.seed is not None:
             np.random.seed(self.seed)
 
         S = np.zeros((T, self.n_vertices))
@@ -110,8 +109,32 @@ class DynamicGraph:
             S[g] = np.random.multivariate_normal(mu, self.graphs[g].Sigma)
 
         if ret_cps:
-            return S, changepoints
+            return S, list(changepoints)
         return S
+
+    @staticmethod
+    def uniform_changepoints(T, n_inter):
+        """Return optimal uniform changepoints for n intervals of data
+
+        We have to deal with the special cases of divisions with rest
+        for the intervals.
+
+        Parameters
+        ----------
+        T : number of timesteps
+        n_inter : number of intervals
+
+        Returns
+        -------
+        changepoints : list[int]
+            changepoint indices
+        """
+        raw_dist = T / n_inter
+        fair_dist = round(raw_dist)
+        if fair_dist < raw_dist:
+            return range(fair_dist, T-fair_dist, fair_dist)
+        else:
+            return range(fair_dist, T, fair_dist)
 
     @staticmethod
     def _graph_indices(T, changepoints):
@@ -120,9 +143,9 @@ class DynamicGraph:
 
         Parameters
         ----------
-        T: int
+        T : int
             number of total timesteps
-        changepoints: list[int]
+        changepoints : list[int]
             list of changepoint indices
 
         Yields
@@ -147,7 +170,28 @@ class ErdosRenyiPrecisionGraph:
     Renyi graph G(n, M), so drawn uniform at random from all
     graphs with n vertices and M active edges.
     The variance, i.e. the diagonal entries of Theta's inverse,
-    are all ones."""
+    are all ones.
+
+    Parameters
+    ----------
+    n_vertices : int
+        number of vertices of the graph
+    n_edges : int
+        number of edges the graph should have
+    seed: int
+        seed to use when creating the ER random graph
+    eps: float
+        threshold below which values are considered 0
+
+    Attributes
+    ----------
+    Theta : 2D ndarray of shape (n_vertices, n_vertices)
+        Precision Matrix of a Covariance considered as Adjacency
+        Matrix
+    Sigma : 2D ndarray of shape (n_vertices, n_vertices
+        Covariance Matrix that corresponds to Theta
+        Sigma = Theta^(-1)
+    """
 
     def __init__(self, n_vertices, n_edges, seed=None, eps=1e-10):
         self.n_vertices = n_vertices
@@ -159,6 +203,12 @@ class ErdosRenyiPrecisionGraph:
 
     @property
     def is_PSD(self):
+        """Convenience property to check if the Precision (and thus also
+        the Covariance matrix) is positive semidefinite
+
+        Returns
+        -------
+        bool indicating if Theta is positive semidefinite"""
         if self.Theta is None:
             return False
         try:
@@ -210,9 +260,8 @@ class ErdosRenyiPrecisionGraph:
 
         Returns
         -------
-        G: ndarray
-            Graph of shape (n_vertices, n_vertices) with
-            n_edges active
+        G: 2D ndarray shape (n_vertices, n_vertices)
+            Precision graph with n_edges active edges
         """
         if seed is not None:
             random.seed(seed)
