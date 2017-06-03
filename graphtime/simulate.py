@@ -105,8 +105,8 @@ class DynamicGraphicalModel:
 
         S = np.zeros((T, self.n_vertices))
         mu = np.zeros(self.n_vertices)
-        for g in self._graph_indices(T, changepoints):
-            S[g] = np.random.multivariate_normal(mu, self.graphs[g].Sigma)
+        for i, g in enumerate(self._graph_indices(T, changepoints)):
+            S[i] = np.random.multivariate_normal(mu, self.graphs[g].Sigma)
 
         if ret_cps:
             return S, list(changepoints)
