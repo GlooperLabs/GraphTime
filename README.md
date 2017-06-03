@@ -1,4 +1,5 @@
 ## GraphTime
+[![Build Status](https://travis-ci.org/GlooperLabs/GraphTime.svg?branch=master)](https://travis-ci.org/GlooperLabs/GraphTime)
 
 Graphtime is a python package to estimate dynamical graphical models from
 time series data. Further, it is planned to add visualisation tools and
