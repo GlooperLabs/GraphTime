@@ -1,6 +1,6 @@
 from distutils.core import setup
 
-current_version = '0.1'
+current_version = '0.1.1'
 
 setup(
     name='graphtime',
