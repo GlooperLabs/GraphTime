@@ -1,5 +1,6 @@
 import random
 import numpy as np
+import networkx as nx
 from graphtime.utils import get_edges
 
 
@@ -217,36 +218,60 @@ class ErdosRenyiPrecisionGraph:
         except np.linalg.LinAlgError:
             return False
 
+
+    # @property
+    # def gexf(self):
+    #     """Associates a GEXF file with the corresponding
+    #     precision matrix. Useful for plotting
+    #     This is deprecated due to nxGraph replacement.. 
+
+    #     Returns
+    #     -------
+    #     gexf: str
+    #         Gexf formatted graph string
+    #     """
+    #     gexf = '<gexf xmlns="http://www.gexf.net/1.2draft" version="1.2">'
+    #     gexf = gexf + '<graph mode="static" defaultedgetype="undirected">'
+    #     gexf = gexf + '<nodes>'
+
+    #     for nid in range(self.Theta.shape[0]):
+    #         gexf = gexf + '<node id="' + str(nid) + '" />'
+
+    #     gexf = gexf + '</nodes><edges>'  # Finish adding nodes
+
+    #     # Find active edges above thresh
+    #     thresh = 0.00001
+    #     eid = 0
+    #     # Uses function from utils
+    #     edges = get_edges(self.Theta, thresh)
+    #     while eid < len(edges):
+    #         gexf = gexf + '<edge id="' + str(edges[eid]) + '">'
+    #         eid += 1
+
+    #     gexf = gexf + '</edges></graph></gexf>'  # Close off file..
+    #     return gexf
+
     @property
-    def gexf(self):
-        """Associates a GEXF file with the corresponding
-        precision matrix. Useful for plotting
+    def nxGraph(self):
+        """Associates a networkX graph object with the corresponding
+        precision matrix.
 
         Returns
         -------
-        gexf: str
-            Gexf formatted graph string
-        """
-        gexf = '<gexf xmlns="http://www.gexf.net/1.2draft" version="1.2">'
-        gexf = gexf + '<graph mode="static" defaultedgetype="undirected">'
-        gexf = gexf + '<nodes>'
-
-        for nid in range(self.Theta.shape[0]):
-            gexf = gexf + '<node id="' + str(nid) + '" />'
-
-        gexf = gexf + '</nodes><edges>'  # Finish adding nodes
-
+        nxGraph: nx graph object"""
+        nxGraph = nx.Graph()
+        p = self.Theta.shape[0]
+        nxGraph.add_nodes_from(range(1, p + 1))
         # Find active edges above thresh
         thresh = 0.00001
         eid = 0
         # Uses function from utils
         edges = get_edges(self.Theta, thresh)
         while eid < len(edges):
-            gexf = gexf + '<edge id="' + str(edges[eid]) + '">'
+            nxGraph.add_edge(edges[eid][0], edges[eid][1])
             eid += 1
 
-        gexf = gexf + '</edges></graph></gexf>'  # Close off file..
-        return gexf
+        return nxGraph
 
     def make_precision_graph(self, seed):
         """Create an Erdos Renyi Graph G(n_vertices, n_edges) and

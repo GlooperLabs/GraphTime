@@ -5,9 +5,11 @@ import tempfile
 """ A library for visualisation function
 The aim is to use networkX for graph visualisation
 and analysis. We may need to extend this somewhat
-to deal with dynamics."""
+to deal with dynamics.
+"""
 
-
+""" This is deprecated, decided to associate networkx graph
+directly with the dynamic graph object, rather than go via gexf
 def plot_graph(DGM, t):
     # Given DynamicGraphModel object, plots
     # the graph at a particular time
@@ -24,3 +26,4 @@ def plot_graph(DGM, t):
 
     nx.draw(G)
     plt.show()  # For viewing inline
+"""
