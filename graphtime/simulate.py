@@ -3,6 +3,7 @@ import numpy as np
 import networkx as nx
 from graphtime.utils import get_edges
 
+#import pdb
 
 class DynamicGraphicalModel:
     """Representation of a dynamic graph, i.e. a list of
@@ -266,7 +267,7 @@ class ErdosRenyiPrecisionGraph:
         thresh = 0.00001
         eid = 0
         # Uses function from utils
-        edges = get_edges(self.Theta, thresh)
+        edges = np.array(get_edges(self.Theta, thresh)) + 1
         while eid < len(edges):
             nxGraph.add_edge(edges[eid][0], edges[eid][1])
             eid += 1
