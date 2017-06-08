@@ -1,0 +1,19 @@
+sudo: false
+language: python
+install:
+  - deactivate
+  - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+  - MINICONDA_PATH=/home/travis/miniconda
+  - chmod +x miniconda.sh && ./miniconda.sh -b -p $MINICONDA_PATH
+  - export PATH=$MINICONDA_PATH/bin:$PATH
+  - conda update --yes conda
+  - conda create -n venv --yes python=3.6 pip nose numpy matplotlib
+  - source activate venv
+  - pip install codecov
+script:
+  - coverage run --source=graphtime -m nose
+  - coverage report
+  - codecov
+
+notifications:
+  email: false

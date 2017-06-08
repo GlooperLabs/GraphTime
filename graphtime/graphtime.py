@@ -63,7 +63,7 @@ class DynamicGraphLasso:
 
                 gbar = sum_gamma / 2
                 SGbar = S[t] - sum_gamma * Gamma
-                Sd, L = np.linalg.eig(SGbar)  # eig values and vectors
+                Sd, L = np.linalg.eigh(SGbar)  # eig values and vectors
 
                 E = np.zeros(P)
                 for r in range(P):
