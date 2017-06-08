@@ -3,4 +3,5 @@ setup.cfg
 setup.py
 graphtime/__init__.py
 graphtime/graphtime.py
+graphtime/simulate.py
 graphtime/utils.py

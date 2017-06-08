@@ -3,8 +3,6 @@ import numpy as np
 import networkx as nx
 from graphtime.utils import get_edges
 
-#import pdb
-
 class DynamicGraphicalModel:
     """Representation of a dynamic graph, i.e. a list of
     graphs that represent a process
@@ -248,7 +246,7 @@ class ErdosRenyiPrecisionGraph:
     #     while eid < len(edges):
     #         gexf = gexf + '<edge id="' + str(edges[eid]) + '">'
     #         eid += 1
-
+    
     #     gexf = gexf + '</edges></graph></gexf>'  # Close off file..
     #     return gexf
 
