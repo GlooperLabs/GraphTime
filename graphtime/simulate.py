@@ -1,6 +1,7 @@
 import random
 import numpy as np
 import networkx as nx
+import matplotlib.pyplot as plt
 from graphtime.utils import get_edges, get_change_points
 
 
@@ -12,8 +13,6 @@ class DynamicGraphicalModel:
     ----------
     n_vertices : int
         number of vertices
-    labels : list[str]
-        list of string denoting the names of vertices
     seed : int
         random seed to use when creating random graphs
         or time series samples from the graphs
@@ -23,11 +22,8 @@ class DynamicGraphicalModel:
     graphs : list of ErdosRenyiPrecisionGraph
     """
 
-    def __init__(self, n_vertices, labels=None, seed=None):
-        if labels is not None:
-            assert len(labels) == n_vertices
+    def __init__(self, n_vertices, seed=None):
         self.n_vertices = n_vertices
-        self.labels = labels
         self.seed = seed
         self.graphs = None
 
@@ -62,7 +58,7 @@ class DynamicGraphicalModel:
             return len(self.graphs)
         return 0
 
-    def create_graphs(self, n_edges_list, use_seed=True):
+    def generate_graphs(self, n_edges_list, use_seed=True):
         """For each number of edges (n_edges) in n_edges_list create
         an Erdos Renyi Precision Graph that allows us to sample
         from later.
@@ -120,11 +116,11 @@ class DynamicGraphicalModel:
 
         if changepoints is not None:
             if len(changepoints) != self.n_graphs - 1:
-                raise ValueError('Need one changepoint more than the number of Graphs')
+                raise ValueError('Need one graph more than the number of changepoints')
         elif uniform:
             changepoints = self.uniform_changepoints(T, self.n_graphs)
         else:
-            raise ValueError('Either Changepoints have to be specified or uniform')
+            raise ValueError('Either changepoints have to be specified or uniform')
 
         if use_seed and self.seed is not None:
             np.random.seed(self.seed)
@@ -188,6 +184,36 @@ class DynamicGraphicalModel:
             count += 1
             yield graph
 
+    def draw(self, layout='circular', figsize=None):
+        """Draw all graphs that describe the DGM in a common figure
+
+        Parameters
+        ----------
+        layout : str
+            possible are 'circular', 'shell', 'spring'
+        figsize : tuple(int)
+            tuple of two integers denoting the mpl figsize
+
+        Returns
+        -------
+        fig : figure
+        """
+        layouts = {
+            'circular': nx.circular_layout,
+            'shell': nx.shell_layout,
+            'spring': nx.spring_layout
+        }
+        figsize = (10, 10) if figsize is None else figsize
+        fig = plt.figure(figsize=figsize)
+        rocls = np.ceil(np.sqrt(len(self.graphs)))
+        for i, graph in enumerate(self.graphs):
+            ax = fig.add_subplot(rocls, rocls, i+1)
+            ax.axis('off')
+            ax.set_frame_on(False)
+            g = graph.nxGraph
+            nx.draw_networkx(g, pos=layouts[layout](g), ax=ax)
+        return fig
+
 
 class PrecisionGraph:
     def __init__(self, Theta, Sigma=None, eps=1e-10):
@@ -206,7 +232,6 @@ class PrecisionGraph:
         nxGraph = nx.Graph()
         p = self.Theta.shape[0]
         nxGraph.add_nodes_from(range(1, p + 1))
-        eid = 0
         # Uses function from utils
         edges = np.array(get_edges(self.Theta, self.eps)) + 1
         for edge in edges:

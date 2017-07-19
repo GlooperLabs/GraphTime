@@ -16,12 +16,19 @@ def get_change_points(Thetas, eps):
     return cps
 
 
-def plot_data_with_cps(data, cps, ymin, ymax):
-    plt.plot(data, alpha=0.5)
+def plot_data_with_cps(data, cps, ymin=None, ymax=None):
+    ymin = np.min(data) if not ymin else ymin
+    ymax = np.max(data) if not ymax else ymax
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    ax.plot(data, alpha=0.5)
+    ax.set_ylabel('Values')
+    ax.set_xlabel('Timestep')
     for cp in cps:
-        plt.plot([cp, cp], [ymin, ymax], 'k-')
-    plt.axis([0, len(data), ymin, ymax], 'k-')
-    plt.show()
+        ax.plot([cp, cp], [ymin, ymax], 'k-')
+    ax.set_xlim([0, len(data)])
+    ax.set_ylim([ymin, ymax])
+    return fig
 
 
 def precision(G_est, G_true, eps=1e-6, per_ts=False):
