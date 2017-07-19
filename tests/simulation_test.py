@@ -58,6 +58,12 @@ class ErdosRenyiTest(unittest.TestCase):
         Theta = np.diag([-1, 1])
         self.assertFalse(ErdosRenyiPrecisionGraph.is_PSD(Theta))
 
+    def test_draw(self):
+        # shallow integration test
+        er = ErdosRenyiPrecisionGraph(10, 10)
+        fig = er.draw()
+        self.assertEqual(len(fig.axes), 1)
+
 
 class DynamicGraphTest(unittest.TestCase):
 

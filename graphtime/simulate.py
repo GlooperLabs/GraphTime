@@ -216,6 +216,9 @@ class DynamicGraphicalModel:
 
 
 class PrecisionGraph:
+    """Wrapper for a precision matrix that is able to draw a graph and
+    give important properties. It also provides an interface for random
+    graphes like the ER-Precison Graph"""
     def __init__(self, Theta, Sigma=None, eps=1e-10):
         self.Theta = Theta
         self.Sigma = np.linalg.inv(Theta) if Sigma is None else Sigma
@@ -228,15 +231,14 @@ class PrecisionGraph:
 
         Returns
         -------
-        nxGraph: nx graph object"""
+        nxGraph: nx graph object
+        """
         nxGraph = nx.Graph()
         p = self.Theta.shape[0]
         nxGraph.add_nodes_from(range(1, p + 1))
-        # Uses function from utils
         edges = np.array(get_edges(self.Theta, self.eps)) + 1
         for edge in edges:
             nxGraph.add_edge(edge[0], edge[1])
-
         return nxGraph
 
     @property
@@ -246,6 +248,34 @@ class PrecisionGraph:
     @property
     def n_edges(self):
         return len(get_edges(self.Theta, self.eps))
+
+    def draw(self, layout='circular', figsize=None):
+        """Draw graph in a matplotlib environment
+
+        Parameters
+        ----------
+        layout : str
+            possible are 'circular', 'shell', 'spring'
+        figsize : tuple(int)
+            tuple of two integers denoting the mpl figsize
+
+        Returns
+        -------
+        fig : figure
+        """
+        layouts = {
+            'circular': nx.circular_layout,
+            'shell': nx.shell_layout,
+            'spring': nx.spring_layout
+        }
+        figsize = (10, 10) if figsize is None else figsize
+        fig = plt.figure(figsize=figsize)
+        ax = fig.add_subplot(1, 1, 1)
+        ax.axis('off')
+        ax.set_frame_on(False)
+        g = self.nxGraph
+        nx.draw_networkx(g, pos=layouts[layout](g), ax=ax)
+        return fig
 
 
 class ErdosRenyiPrecisionGraph(PrecisionGraph):
