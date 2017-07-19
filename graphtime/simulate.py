@@ -199,7 +199,8 @@ class ErdosRenyiPrecisionGraph:
         self.Theta = None
         while not self.is_PSD:
             self.Theta = self.make_precision_graph(seed)
-        self.Theta, self.Sigma = self.scale_variance(self.Theta, eps)
+        self.eps = eps
+        self.Theta, self.Sigma = self.scale_variance(self.Theta, self.eps)
 
     @property
     def is_PSD(self):
@@ -217,39 +218,6 @@ class ErdosRenyiPrecisionGraph:
         except np.linalg.LinAlgError:
             return False
 
-
-    # @property
-    # def gexf(self):
-    #     """Associates a GEXF file with the corresponding
-    #     precision matrix. Useful for plotting
-    #     This is deprecated due to nxGraph replacement.. 
-
-    #     Returns
-    #     -------
-    #     gexf: str
-    #         Gexf formatted graph string
-    #     """
-    #     gexf = '<gexf xmlns="http://www.gexf.net/1.2draft" version="1.2">'
-    #     gexf = gexf + '<graph mode="static" defaultedgetype="undirected">'
-    #     gexf = gexf + '<nodes>'
-
-    #     for nid in range(self.Theta.shape[0]):
-    #         gexf = gexf + '<node id="' + str(nid) + '" />'
-
-    #     gexf = gexf + '</nodes><edges>'  # Finish adding nodes
-
-    #     # Find active edges above thresh
-    #     thresh = 0.00001
-    #     eid = 0
-    #     # Uses function from utils
-    #     edges = get_edges(self.Theta, thresh)
-    #     while eid < len(edges):
-    #         gexf = gexf + '<edge id="' + str(edges[eid]) + '">'
-    #         eid += 1
-    
-    #     gexf = gexf + '</edges></graph></gexf>'  # Close off file..
-    #     return gexf
-
     @property
     def nxGraph(self):
         """Associates a networkX graph object with the corresponding
@@ -261,11 +229,9 @@ class ErdosRenyiPrecisionGraph:
         nxGraph = nx.Graph()
         p = self.Theta.shape[0]
         nxGraph.add_nodes_from(range(1, p + 1))
-        # Find active edges above thresh
-        thresh = 0.00001
         eid = 0
         # Uses function from utils
-        edges = np.array(get_edges(self.Theta, thresh)) + 1
+        edges = np.array(get_edges(self.Theta, self.eps)) + 1
         while eid < len(edges):
             nxGraph.add_edge(edges[eid][0], edges[eid][1])
             eid += 1
