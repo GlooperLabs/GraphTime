@@ -2,8 +2,24 @@ import unittest
 import numpy as np
 
 from graphtime.simulate import ErdosRenyiPrecisionGraph, \
-    DynamicGraphicalModel
+    DynamicGraphicalModel, PrecisionGraph
 from graphtime.utils import get_edges
+
+
+class GraphTest(unittest.TestCase):
+    G = np.array([[1, 1, 0],
+                  [1, 1, 0],
+                  [0, 0, 1]])
+
+    def test_init(self):
+        Graph = PrecisionGraph(self.G, self.G)
+        self.assertEqual(Graph.n_edges, 1)
+        self.assertEqual(Graph.n_vertices, 3)
+
+    def test_nxconvert(self):
+        Graph = PrecisionGraph(self.G, self.G)
+        nxgraph = Graph.nxGraph
+        self.assertEqual(nxgraph.edges(), [(1, 2)])
 
 
 class ErdosRenyiTest(unittest.TestCase):
@@ -39,12 +55,8 @@ class ErdosRenyiTest(unittest.TestCase):
         self.assertTrue(np.allclose(ER.Sigma.diagonal(), unit, atol=1e-7))
 
     def test_psd(self):
-        n_verts, n_edges = 5, 3
-        ER = ErdosRenyiPrecisionGraph(n_verts, n_edges)
-        self.assertTrue(ER.is_PSD)
-        # manipulate Theta
-        ER.Theta = np.diag([-1, 1])
-        self.assertFalse(ER.is_PSD)
+        Theta = np.diag([-1, 1])
+        self.assertFalse(ErdosRenyiPrecisionGraph.is_PSD(Theta))
 
 
 class DynamicGraphTest(unittest.TestCase):
@@ -170,3 +182,32 @@ class DynamicGraphTest(unittest.TestCase):
         DGS.create_graphs(n_edges_list)
         S, cps = DGS.sample(T, ret_cps=True)
         self.assertEqual(len(cps), len(n_edges_list)-1)
+
+    def test_from_Thetas(self):
+        Theta1 = np.array([[1,  0, .3],
+                           [0,  .5, 0],
+                           [.3, 0,  1]])
+        Theta2 = np.array([[1,  .3, 0],
+                           [.3, .5, 0],
+                           [0,  0,  1]])
+        Thetas = np.zeros((10, 3, 3))
+        for i in range(5):
+            Thetas[i] = Theta1
+        for i in range(5, 10):
+            Thetas[i] = Theta2
+        DGM = DynamicGraphicalModel.from_Thetas(Thetas)
+        self.assertEqual(len(DGM.graphs), 2)
+        G1, G2 = DGM.graphs
+        self.assertEqual(G1.n_edges, 1)
+        self.assertEqual(G2.n_edges, 1)
+        self.assertTrue(np.allclose(G1.Theta, Theta1))
+        self.assertTrue(np.allclose(G2.Theta, Theta2))
+
+    def test_from_Thetassertion(self):
+        Theta1 = np.array([[1, 0, 1],
+                           [0, 1, 0],
+                           [1, 0, 1]])
+        with self.assertRaises(ValueError):
+            DynamicGraphicalModel.from_Thetas(Theta1)
+        with self.assertRaises(ValueError):
+            DynamicGraphicalModel.from_Thetas(Theta1[:, np.newaxis, :])

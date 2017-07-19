@@ -4,20 +4,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def get_edges(G, eps, P=None):
-    # get edges of adjacency matrix G
-    # TODO: make use of array mask here
-    P = P or G.shape[0]
-    return [(i, j) for i in range(P-1) for j in range(i+1, P) if abs(G[i, j]) > eps]
+def get_edges(G, eps):
+    P = G.shape[0]
+    return [(i, j) for i in range(P-1) for j in range(i+1, P)
+            if abs(G[i, j]) >= eps]
 
 
-def get_change_points(Theta, eps, T=None, P=None):
-    # calculate histogram of change points of T adjacency matrices
-    T = T or Theta.shape[0]
-    P = P or Theta.shape[1]
-    # difference between consecutive adjacency matrices
-    Delta_Theta = np.diff(Theta, axis=0)
-    return [len(get_edges(G, eps, P)) for G in Delta_Theta]
+def get_change_points(Thetas, eps):
+    cps = [i for i in range(1, len(Thetas)) if not
+           np.allclose(Thetas[i-1], Thetas[i], atol=eps, rtol=0)]
+    return cps
 
 
 def plot_data_with_cps(data, cps, ymin, ymax):
