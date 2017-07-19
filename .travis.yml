@@ -7,7 +7,7 @@ install:
   - chmod +x miniconda.sh && ./miniconda.sh -b -p $MINICONDA_PATH
   - export PATH=$MINICONDA_PATH/bin:$PATH
   - conda update --yes conda
-  - conda create -n venv --yes python=3.6 pip nose numpy matplotlib
+  - conda create -n venv --yes python=3.6 pip nose numpy matplotlib networkx
   - source activate venv
   - pip install codecov
 script:
