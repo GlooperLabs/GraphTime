@@ -208,10 +208,13 @@ class DynamicGraphicalModel:
         rocls = np.ceil(np.sqrt(len(self.graphs)))
         for i, graph in enumerate(self.graphs):
             ax = fig.add_subplot(rocls, rocls, i+1)
+            ax.set_title('Graph ' + str(i+1))
             ax.axis('off')
             ax.set_frame_on(False)
             g = graph.nxGraph
-            nx.draw_networkx(g, pos=layouts[layout](g), ax=ax)
+            weights = [abs(g.edge[i][j]['weight']) * 5 for i, j in g.edges()]
+            nx.draw_networkx(g, pos=layouts[layout](g), ax=ax, edge_cmap=plt.get_cmap('Reds'),
+                             width=2, edge_color=weights)
         return fig
 
 
@@ -237,8 +240,8 @@ class PrecisionGraph:
         p = self.Theta.shape[0]
         nxGraph.add_nodes_from(range(1, p + 1))
         edges = np.array(get_edges(self.Theta, self.eps)) + 1
-        for edge in edges:
-            nxGraph.add_edge(edge[0], edge[1])
+        nxGraph.add_weighted_edges_from([(i, j, self.Theta[i-1, j-1])
+                                         for i, j in edges])
         return nxGraph
 
     @property
@@ -274,7 +277,9 @@ class PrecisionGraph:
         ax.axis('off')
         ax.set_frame_on(False)
         g = self.nxGraph
-        nx.draw_networkx(g, pos=layouts[layout](g), ax=ax)
+        weights = [abs(g.edge[i][j]['weight']) * 5 for i, j in g.edges()]
+        nx.draw_networkx(g, pos=layouts[layout](g), ax=ax, edge_cmap=plt.get_cmap('Reds'),
+                         width=2, edge_color=weights)
         return fig
 
 
