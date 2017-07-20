@@ -10,6 +10,7 @@ install:
   - conda create -n venv --yes python=3.6 pip nose numpy matplotlib networkx
   - source activate venv
   - pip install codecov
+  - echo 'backend:Agg' >> matplotlibrc
 script:
   - coverage run --source=graphtime -m nose
   - coverage report
