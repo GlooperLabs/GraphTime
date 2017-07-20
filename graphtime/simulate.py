@@ -1,7 +1,9 @@
 import random
 import numpy as np
 import networkx as nx
-from graphtime.utils import get_edges
+import matplotlib.pyplot as plt
+from graphtime.utils import get_edges, get_change_points
+
 
 class DynamicGraphicalModel:
     """Representation of a dynamic graph, i.e. a list of
@@ -11,8 +13,6 @@ class DynamicGraphicalModel:
     ----------
     n_vertices : int
         number of vertices
-    labels : list[str]
-        list of string denoting the names of vertices
     seed : int
         random seed to use when creating random graphs
         or time series samples from the graphs
@@ -22,13 +22,35 @@ class DynamicGraphicalModel:
     graphs : list of ErdosRenyiPrecisionGraph
     """
 
-    def __init__(self, n_vertices, labels=None, seed=None):
-        if labels is not None:
-            assert len(labels) == n_vertices
+    def __init__(self, n_vertices, seed=None):
         self.n_vertices = n_vertices
-        self.labels = labels
         self.seed = seed
         self.graphs = None
+
+    @classmethod
+    def from_Thetas(cls, Thetas, eps=1e-5):
+        """Create a DynamicGraphicalModel from a list of Precision
+        matrices (Thetas), for example to convert the solution of
+        the Lasso or other input data.
+
+        Parameters
+        ----------
+        Thetas : 3D ndarry, shape (timesteps, vertices, vertices)
+
+        Returns
+        -------
+        DGL : DynamicGraphicalModel
+        """
+        if len(Thetas.shape) != 3:
+            raise ValueError('Need Thetas of shape (timesteps, verts, verts')
+        if Thetas.shape[1] != Thetas.shape[2]:
+            raise ValueError('Theta element must be square')
+        n_vertices = Thetas.shape[1]
+        DGM = DynamicGraphicalModel(n_vertices)
+
+        changepoints = [0] + get_change_points(Thetas, eps)
+        DGM.graphs = [PrecisionGraph(Thetas[cp], eps=eps) for cp in changepoints]
+        return DGM
 
     @property
     def n_graphs(self):
@@ -36,7 +58,7 @@ class DynamicGraphicalModel:
             return len(self.graphs)
         return 0
 
-    def create_graphs(self, n_edges_list, use_seed=True):
+    def generate_graphs(self, n_edges_list, use_seed=True):
         """For each number of edges (n_edges) in n_edges_list create
         an Erdos Renyi Precision Graph that allows us to sample
         from later.
@@ -94,11 +116,11 @@ class DynamicGraphicalModel:
 
         if changepoints is not None:
             if len(changepoints) != self.n_graphs - 1:
-                raise ValueError('Need one changepoint more than the number of Graphs')
+                raise ValueError('Need one graph more than the number of changepoints')
         elif uniform:
             changepoints = self.uniform_changepoints(T, self.n_graphs)
         else:
-            raise ValueError('Either Changepoints have to be specified or uniform')
+            raise ValueError('Either changepoints have to be specified or uniform')
 
         if use_seed and self.seed is not None:
             np.random.seed(self.seed)
@@ -162,8 +184,106 @@ class DynamicGraphicalModel:
             count += 1
             yield graph
 
+    def draw(self, layout='circular', figsize=None):
+        """Draw all graphs that describe the DGM in a common figure
 
-class ErdosRenyiPrecisionGraph:
+        Parameters
+        ----------
+        layout : str
+            possible are 'circular', 'shell', 'spring'
+        figsize : tuple(int)
+            tuple of two integers denoting the mpl figsize
+
+        Returns
+        -------
+        fig : figure
+        """
+        layouts = {
+            'circular': nx.circular_layout,
+            'shell': nx.shell_layout,
+            'spring': nx.spring_layout
+        }
+        figsize = (10, 10) if figsize is None else figsize
+        fig = plt.figure(figsize=figsize)
+        rocls = np.ceil(np.sqrt(len(self.graphs)))
+        for i, graph in enumerate(self.graphs):
+            ax = fig.add_subplot(rocls, rocls, i+1)
+            ax.set_title('Graph ' + str(i+1))
+            ax.axis('off')
+            ax.set_frame_on(False)
+            g = graph.nxGraph
+            weights = [abs(g.edge[i][j]['weight']) * 5 for i, j in g.edges()]
+            nx.draw_networkx(g, pos=layouts[layout](g), ax=ax, edge_cmap=plt.get_cmap('Reds'),
+                             width=2, edge_color=weights)
+        return fig
+
+
+class PrecisionGraph:
+    """Wrapper for a precision matrix that is able to draw a graph and
+    give important properties. It also provides an interface for random
+    graphes like the ER-Precison Graph"""
+    def __init__(self, Theta, Sigma=None, eps=1e-10):
+        self.Theta = Theta
+        self.Sigma = np.linalg.inv(Theta) if Sigma is None else Sigma
+        self.eps = eps
+
+    @property
+    def nxGraph(self):
+        """Associates a networkX graph object with the corresponding
+        precision matrix.
+
+        Returns
+        -------
+        nxGraph: nx graph object
+        """
+        nxGraph = nx.Graph()
+        p = self.Theta.shape[0]
+        nxGraph.add_nodes_from(range(1, p + 1))
+        edges = np.array(get_edges(self.Theta, self.eps)) + 1
+        nxGraph.add_weighted_edges_from([(i, j, self.Theta[i-1, j-1])
+                                         for i, j in edges])
+        return nxGraph
+
+    @property
+    def n_vertices(self):
+        return self.Theta.shape[0]
+
+    @property
+    def n_edges(self):
+        return len(get_edges(self.Theta, self.eps))
+
+    def draw(self, layout='circular', figsize=None):
+        """Draw graph in a matplotlib environment
+
+        Parameters
+        ----------
+        layout : str
+            possible are 'circular', 'shell', 'spring'
+        figsize : tuple(int)
+            tuple of two integers denoting the mpl figsize
+
+        Returns
+        -------
+        fig : figure
+        """
+        layouts = {
+            'circular': nx.circular_layout,
+            'shell': nx.shell_layout,
+            'spring': nx.spring_layout
+        }
+        figsize = (10, 10) if figsize is None else figsize
+        fig = plt.figure(figsize=figsize)
+        ax = fig.add_subplot(1, 1, 1)
+        ax.axis('off')
+        ax.set_frame_on(False)
+        g = self.nxGraph
+        weights = [abs(g.edge[i][j]['weight']) * 5 for i, j in g.edges()]
+        nx.draw_networkx(g, pos=layouts[layout](g), ax=ax, edge_cmap=plt.get_cmap('Reds'),
+                         width=2, edge_color=weights)
+        return fig
+
+
+class ErdosRenyiPrecisionGraph(PrecisionGraph):
     """Creates and Erdos Renyi Adjacency Matrix on initialisation,
     which conforms to the definition of a precision matrix. The
     precision matrix is created based on the defined Erdos
@@ -194,106 +314,53 @@ class ErdosRenyiPrecisionGraph:
     """
 
     def __init__(self, n_vertices, n_edges, seed=None, eps=1e-10):
-        self.n_vertices = n_vertices
-        self.n_edges = n_edges
-        self.Theta = None
-        while not self.is_PSD:
-            self.Theta = self.make_precision_graph(seed)
-        self.Theta, self.Sigma = self.scale_variance(self.Theta, eps)
+        if seed is not None:
+            random.seed(seed)
+        Theta = None
+        while not self.is_PSD(Theta):
+            Theta = self.make_precision_graph(n_vertices, n_edges)
+        Theta, Sigma = self.scale_variance(Theta, eps)
+        super().__init__(Theta, Sigma, eps)
 
-    @property
-    def is_PSD(self):
+    @staticmethod
+    def is_PSD(Theta):
         """Convenience property to check if the Precision (and thus also
         the Covariance matrix) is positive semidefinite
 
         Returns
         -------
         bool indicating if Theta is positive semidefinite"""
-        if self.Theta is None:
+        if Theta is None:
             return False
         try:
-            np.linalg.cholesky(self.Theta)
+            np.linalg.cholesky(Theta)
             return True
         except np.linalg.LinAlgError:
             return False
 
-
-    # @property
-    # def gexf(self):
-    #     """Associates a GEXF file with the corresponding
-    #     precision matrix. Useful for plotting
-    #     This is deprecated due to nxGraph replacement.. 
-
-    #     Returns
-    #     -------
-    #     gexf: str
-    #         Gexf formatted graph string
-    #     """
-    #     gexf = '<gexf xmlns="http://www.gexf.net/1.2draft" version="1.2">'
-    #     gexf = gexf + '<graph mode="static" defaultedgetype="undirected">'
-    #     gexf = gexf + '<nodes>'
-
-    #     for nid in range(self.Theta.shape[0]):
-    #         gexf = gexf + '<node id="' + str(nid) + '" />'
-
-    #     gexf = gexf + '</nodes><edges>'  # Finish adding nodes
-
-    #     # Find active edges above thresh
-    #     thresh = 0.00001
-    #     eid = 0
-    #     # Uses function from utils
-    #     edges = get_edges(self.Theta, thresh)
-    #     while eid < len(edges):
-    #         gexf = gexf + '<edge id="' + str(edges[eid]) + '">'
-    #         eid += 1
-
-    #     gexf = gexf + '</edges></graph></gexf>'  # Close off file..
-    #     return gexf
-
-    @property
-    def nxGraph(self):
-        """Associates a networkX graph object with the corresponding
-        precision matrix.
-
-        Returns
-        -------
-        nxGraph: nx graph object"""
-        nxGraph = nx.Graph()
-        p = self.Theta.shape[0]
-        nxGraph.add_nodes_from(range(1, p + 1))
-        # Find active edges above thresh
-        thresh = 0.00001
-        eid = 0
-        # Uses function from utils
-        edges = np.array(get_edges(self.Theta, thresh)) + 1
-        while eid < len(edges):
-            nxGraph.add_edge(edges[eid][0], edges[eid][1])
-            eid += 1
-
-        return nxGraph
-
-    def make_precision_graph(self, seed):
+    @staticmethod
+    def make_precision_graph(n_vertices, n_edges):
         """Create an Erdos Renyi Graph G(n_vertices, n_edges) and
         converts it to a valid precision matrix with the same
         sparsity structure
 
         Parameters
         ----------
-        seed: int
-            random seed
+        n_vertices : int
+            number of vertices the graph should have
+        n_edges : int
+            number of edges the graph should contain
 
         Returns
         -------
         G: 2D ndarray shape (n_vertices, n_vertices)
             Precision graph with n_edges active edges
         """
-        if seed is not None:
-            random.seed(seed)
-        G = 0.5 * np.eye(self.n_vertices)
-        nodes = list(range(self.n_vertices))
+        G = 0.5 * np.eye(n_vertices)
+        nodes = list(range(n_vertices))
         edges = 0
 
-        while edges < self.n_edges:
+        while edges < n_edges:
             n1 = random.choice(nodes)
             n2 = random.choice(nodes)
             if n1 == n2 or G[n1, n2] != 0:
