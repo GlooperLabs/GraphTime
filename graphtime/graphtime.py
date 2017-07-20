@@ -147,6 +147,7 @@ class DynamicGraphLasso:
         self.eps_dual = eps_dual
         self.Theta = V1
         self.sparse_Theta = self.convert_to_sparse(U, W)
+
         return self
 
     def smooth(self, W, T, P, V1, V2, dW):
