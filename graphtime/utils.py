@@ -95,6 +95,27 @@ def evaluate(model, y, G_true, lam1, lam2, gamma1, gamma2, gammaw, tol, max_iter
     return {(lam1, lam2): performance(dglm.sparse_Theta, G_true)}
 
 
+def soft_threshold(X, thresh):
+    return (np.absolute(X) - thresh).clip(0) * np.sign(X)
+
+
+def scale_standard(X):
+    """Scale data X to unit variance and zero mean. Useful before using any graphical
+    estimator
+
+    Parameters
+    ----------
+    X : 2D ndarray, shape (timesteps, variables)
+
+    Returns
+    -------
+    X : 2d ndarray, shape (timesteps, variables)
+    """
+    X -= np.mean(X, axis=0)
+    X /= np.std(X, axis=0)
+    return X
+
+
 # BELOW IS UNTESTED
 # def evalFit(Theta, X):
 #     """ Reports model fit chacteristics of a given estimated dynamic
