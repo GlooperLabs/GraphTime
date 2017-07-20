@@ -1,3 +1,6 @@
+import matplotlib
+matplotlib.use('Agg')
+
 import numpy as np
 from unittest import TestCase
 from graphtime.utils import plot_data_with_cps, get_change_points, get_edges
