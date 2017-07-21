@@ -28,7 +28,7 @@ def precision(Theta_true, Theta_est, eps=1e-6, per_ts=False):
         est_edges = set(get_edges(Theta_est[i], eps))
         gt_edges = set(get_edges(Theta_true[i], eps))
         n_joint = len(est_edges.intersection(gt_edges))
-        latest = n_joint / len(est_edges) if n_joint > 0 else 0
+        latest = n_joint / len(est_edges) if len(est_edges) > 0 else 1
         precision += [latest] if per_ts else latest
     return np.array(precision) if per_ts else precision / n
 
@@ -86,7 +86,7 @@ def recall(Theta_true, Theta_est, eps=1e-6, per_ts=False):
         est_edges = set(get_edges(Theta_est[i], eps))
         gt_edges = set(get_edges(Theta_true[i], eps))
         n_joint = len(est_edges.intersection(gt_edges))
-        latest = n_joint / len(gt_edges) if n_joint > 0 else 0
+        latest = n_joint / len(gt_edges) if len(gt_edges) > 0 else 1
         recall += [latest] if per_ts else latest
     return np.array(recall) if per_ts else recall / n
 
@@ -138,10 +138,11 @@ def f_score(Theta_true, Theta_est, beta=1, eps=1e-6, per_ts=False):
     ndarray or float
         recall list or single precision value
     """
-    prec = precision(Theta_est, Theta_true, eps, per_ts=True)
-    rec = recall(Theta_est, Theta_true, eps, per_ts=True)
+    prec = precision(Theta_true, Theta_est, eps, per_ts=True)
+    rec = recall(Theta_true, Theta_est, eps, per_ts=True)
     with np.errstate(divide='ignore', invalid='ignore'):
         nom = (1 + beta**2) * prec * rec
+        print(beta**2 * prec)
         den = beta**2 * prec + rec
         f = np.nan_to_num(np.true_divide(nom, den))
     return f if per_ts else np.sum(f) / len(Theta_true)
@@ -185,7 +186,7 @@ def global_f_score(Theta_true, Theta_est, beta=1, eps=1e-6):
         return f
 
 
-def estimated_edges(Theta_est, eps=1e-6, per_ts=True):
+def n_estimated_edges(Theta_est, eps=1e-6, per_ts=True):
     """Sums up the number of edges in each individual precision graph and by default
     sums the number for each graph over the whole timeseries. per_ts allows to change
     this so only a scalar is returned
@@ -196,13 +197,35 @@ def estimated_edges(Theta_est, eps=1e-6, per_ts=True):
     eps : float
     per_ts : bool
         whether to return array or sum the amount of edges up
+
+    Returns
+    -------
+    list for edges or int for global sum
     """
     n_edges = [len(get_edges(G, eps)) for G in Theta_est]
     return n_edges if per_ts else sum(n_edges)
 
 
 def changepoint_density(Theta_est, eps=1e-6, per_ts=True):
-    pass
+    """Sums up the number of edges changed either per timestep or globally. A changed
+    edge exists at t if the weight of edge changes between timestep t-1 and t where the
+    prior graph is equal to the first, so no changepoint is possible at t=1.
+
+    Parameters
+    ----------
+    Theta_est : 3D ndarray, shape (timesteps, n_vertices, n_vertices)
+    eps : float
+    per_ts : bool
+        whether to return array or sum the amount of edges up
+
+    Returns
+    -------
+    list for changepoints or int for global sum
+    """
+    cps = [len(get_edges(Theta_est[t-1] - Theta_est[t], eps))
+           for t in range(1, len(Theta_est))]
+    cps = [0] + cps
+    return cps if per_ts else sum(cps)
 
 
 # BELOW IS UNTESTED
