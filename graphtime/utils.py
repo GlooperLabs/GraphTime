@@ -30,6 +30,20 @@ def plot_data_with_cps(data, cps, ymin=None, ymax=None):
 
 
 def soft_threshold(X, thresh):
+    """Proximal mapping of l1-norm results in soft-thresholding. Therefore, it is required
+    for the optimisation of the GFGL or IFGL.
+
+    Parameters
+    ----------
+    X : ndarray
+        input data of arbitrary shape
+    thresh : float
+        threshold value
+
+    Returns
+    -------
+    ndarray soft threshold applied
+    """
     return (np.absolute(X) - thresh).clip(0) * np.sign(X)
 
 

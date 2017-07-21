@@ -1,6 +1,7 @@
 import numpy as np
 from unittest import TestCase
-from graphtime.utils import plot_data_with_cps, get_change_points, get_edges
+from graphtime.utils import plot_data_with_cps, get_change_points, get_edges, soft_threshold, \
+    scale_standard
 
 
 class UtilsTest(TestCase):
@@ -38,3 +39,18 @@ class UtilsTest(TestCase):
         cps = get_change_points(Thetas, 1e-7)
         self.assertEqual(cps, [5])
 
+    def test_soft_threshold(self):
+        x = -0.5
+        lam = 0.01
+        exp = - max(0.5 - lam, 0)
+        self.assertEqual(soft_threshold(x, lam), exp)
+        X = np.array([0.3, -0.2, -0.25])
+        lam = 0.2
+        exp = np.array([0.1, 0, -0.05])
+        self.assertTrue(np.allclose(soft_threshold(X, lam), exp))
+
+    def test_scaling(self):
+        X = np.array([0.5, 0.2, -0.9, 0.2, 3])
+        X_scale = scale_standard(X)
+        self.assertTrue(np.allclose(X_scale.mean(), 0))
+        self.assertTrue(np.allclose(X_scale.std(), 1))
