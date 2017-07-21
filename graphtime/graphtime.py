@@ -1,10 +1,11 @@
 import numpy as np
+from graphtime.utils import soft_threshold, scale_standard
 
 
 class DynamicGraphLasso:
 
     def __init__(self, lambda1, lambda2, gamma1=1, gamma2=1, gammaw=1, tol=1e-4,
-                 max_iter=100, verbose=False):
+                 max_iter=100, verbose=False, center=True):
         self.lambda1 = lambda1
         self.lambda2 = lambda2
         self.gamma1 = gamma1
@@ -12,9 +13,12 @@ class DynamicGraphLasso:
         self.gammaw = gammaw
         self.tol = tol
         self.max_iter = max_iter
+        self.center = center
         self.verbose = verbose
 
     def fit(self, X):
+        if self.center:
+            X = scale_standard(X)
         if type(self) == DynamicGraphLasso:
             subs = ', '.join([c.__name__ for c in
                               DynamicGraphLasso.__subclasses__()])
@@ -142,11 +146,21 @@ class DynamicGraphLasso:
         self.eps_primal = eps_primal
         self.eps_dual = eps_dual
         self.Theta = V1
-        self.sparse_Theta = convert_to_sparse(U, W)
+        self.sparse_Theta = self.convert_to_sparse(U, W)
+
         return self
 
     def smooth(self, W, T, P, V1, V2, dW):
         raise NotImplementedError
+
+    @staticmethod
+    def convert_to_sparse(U, W):
+        T, P, _ = U.shape
+        Theta = np.zeros(U.shape)
+        Theta[0] = U[0]
+        for t in range(T - 1):
+            Theta[t + 1] = Theta[t] + W[t]
+        return Theta
 
 
 class GroupFusedGraphLasso(DynamicGraphLasso):
@@ -173,16 +187,3 @@ class IndepFusedGraphLasso(DynamicGraphLasso):
             for j in range(i, P):
                 W[t - 1, i, j] = soft_threshold(Gamma[i, j], lamgw)
                 W[t - 1, j, i] = W[t - 1, i, j]
-
-
-def soft_threshold(X, thresh):
-    return (np.absolute(X) - thresh).clip(0) * np.sign(X)
-
-
-def convert_to_sparse(V1, W):
-    T, P, _ = V1.shape
-    Theta = np.zeros(V1.shape)
-    Theta[0] = V1[0]
-    for t in range(T-1):
-        Theta[t+1] = Theta[t] + W[t]
-    return Theta
