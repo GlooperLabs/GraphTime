@@ -11,13 +11,27 @@ increasing data T. The number and relative position of changepoints is fixed.
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
-sys.path.append('../')
+#sys.path.append('../')
 from graphtime import *
+from graphtime.simulate import *
 from graphtime.utils import get_edges, get_change_points, plot_data_with_cps
 
-for p in [5]:
-    s = 0.2*p # Sparsity for this size of experiment
-    # Simulate graphs
-    for k in [0,1,2]:
-        DGS = DynamicGraphicalModel(p, seed=2)
-        DGS.graphs = ErdosRenyiPrecisionGraph(DGS.n_vertices, s)
+
+#sigma = np.load('data/sigma.npy')
+#sigma_inv = np.load('data/sigma_inv.npy')
+T = 90 # Steps
+cps = [30,60]   # Location of changepoints
+K = len(cps)    # Number of changepoints
+P = 10 # Variables
+S = 5 # Active Edges
+eps = 0.000001 # Edge threshold epsilon
+
+#edges = get_edges(sigma_inv[0], eps)
+#change_points = get_change_points(sigma_inv, eps)
+
+DGS = DynamicGraphicalModel(P, seed=2)
+DGS.generate_graphs(n_edges_list=[S, S, S]);
+y = DGS.sample(T, changepoints=cps);
+
+#DGS.draw();
+#plot_data_with_cps(y, cps, ymin=-5, ymax=5)

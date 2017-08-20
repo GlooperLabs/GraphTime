@@ -3,9 +3,35 @@ from graphtime.utils import soft_threshold, scale_standard
 
 
 class DynamicGraphLasso:
-
+    """
+    This is the object which corresponds to the optimisation problem and its
+    solutions.
+    
+    Parameters
+    ----------
+    lambda1 : float
+        sparsity inducing regularisation parameter
+    lambda2 : float
+        smoothing regularisation parameter
+    gamma1, gamma2, gammaw : float
+        auxilary lagrangian parameter for ADMM, respectively these are for
+        enforcing constraints on the dual variables (first two equal to the primal)
+        and gammaw to enforce that the difference of the dual variables is equal
+        to difference of the primal
+    tol : float
+        tolerance for primal and dual convergence metrics
+    max_iter : int
+        maximum number of iterations to perform
+    verbose: bool
+        display output or not..
+    center: bool
+        Whether to center the data (rescales data assuming constant variance)
+    init_sol: 3D ND array shape (Time-points x n_vertices x n_vertices )
+        Whether to start from an initial/previous solution
+             
+    """
     def __init__(self, lambda1, lambda2, gamma1=1, gamma2=1, gammaw=1, tol=1e-4,
-                 max_iter=100, verbose=False, center=True):
+                 max_iter=100, verbose=False, center=True, init_sol=None):
         self.lambda1 = lambda1
         self.lambda2 = lambda2
         self.gamma1 = gamma1
