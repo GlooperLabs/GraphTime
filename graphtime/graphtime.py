@@ -40,6 +40,7 @@ class DynamicGraphLasso:
         self.tol = tol
         self.max_iter = max_iter
         self.center = center
+        self.init_sol = init_sol
         self.verbose = verbose
 
     def fit(self, X):
@@ -59,9 +60,15 @@ class DynamicGraphLasso:
         W = np.zeros((T - 1, P, P))
 
         # Initialise Theta (Primal)
-        U = np.zeros((T, P, P))
-        for t in range(T):
-            U[t] = np.eye(P)
+        if self.init_sol:
+            if self.init_sol.shape == S.shape:
+                U = self.init_sol
+            else:
+                raise ValueError('Initial solution should match problem dimensions')
+        else:
+            U = np.zeros((T, P, P))
+            for t in range(T):
+                U[t] = np.eye(P)
 
         # change auxiliaries
         V1 = U.copy()
