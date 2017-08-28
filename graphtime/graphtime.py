@@ -1,11 +1,11 @@
 import numpy as np
-from graphtime.utils import soft_threshold, scale_standard
+from graphtime.utils import soft_threshold, scale_standard, kernel_smooth
 
 
 class DynamicGraphLasso:
     """
-    This is the object which corresponds to the optimisation problem and its
-    solutions.
+    This is the object which corresponds to the dynamic graph optimisation 
+    problem and its solutions.
     
     Parameters
     ----------
@@ -22,16 +22,19 @@ class DynamicGraphLasso:
         tolerance for primal and dual convergence metrics
     max_iter : int
         maximum number of iterations to perform
-    verbose: bool
+    verbose : bool
         display output or not..
-    center: bool
+    center : bool
         Whether to center the data (rescales data assuming constant variance)
-    init_sol: 3D ND array shape (Time-points x n_vertices x n_vertices )
+    init_sol : 3D ND array shape (Time-points x n_vertices x n_vertices )
         Whether to start from an initial/previous solution
+    pre_smooth : int
+        width of kernel pre-smoothing window (defualt: no pre smoothing)
              
     """
     def __init__(self, lambda1, lambda2, gamma1=1, gamma2=1, gammaw=1, tol=1e-4,
-                 max_iter=100, verbose=False, center=True, init_sol=None):
+                 max_iter=100, verbose=False, center=True, init_sol=None, 
+                 pre_smooth=None):
         self.lambda1 = lambda1
         self.lambda2 = lambda2
         self.gamma1 = gamma1
@@ -51,11 +54,17 @@ class DynamicGraphLasso:
                               DynamicGraphLasso.__subclasses__()])
             raise NotImplementedError('Baseclass! - use ' +  subs)
         T, P = X.shape
-        # don't use pre-smoothing
         S = np.zeros((T, P, P))
-        for t in range(T):
-            x = X[t].reshape(-1, 1)
-            S[t] = x.dot(x.T)
+        if self.pre_smooth == None:
+            # don't use pre-smoothing
+            for t in range(T):
+                x = X[t].reshape(-1, 1)
+                S[t] = x.dot(x.T)   # outer product
+        else:
+            # Kernel pre-smoothing if required...
+            S = kernel_smooth(X, self.pre_smooth)
+            
+        
         # differencing aux variable
         W = np.zeros((T - 1, P, P))
 

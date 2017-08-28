@@ -57,12 +57,41 @@ def scale_standard(X):
 
     Returns
     -------
-    X : 2d ndarray, shape (timesteps, variables)
+    X : 2D ndarray, shape (timesteps, variables)
     """
     X -= np.mean(X, axis=0)
     X /= np.std(X, axis=0)
     return X
 
+def kernel_smooth(X, M):
+    """Outputs a smoothed empirical covariance matrix with moving window. This
+    assumes that the window is square and does not apply any weighting to data
+    within the kernel.
+    
+    Parameters
+    ----------
+    X : 2D ndarray, shape (timesteps, variables)
+    M : int
+        width of kernel smoothing window
+
+    Returns
+    -------
+    S : 3D ndarray, shape (timesteps, variables, variables)
+    """
+    T, P = X.shape
+    S = np.zeros((T, P, P))
+    # Split into three parts (end regions and central block)
+    for t in range(M):
+        S[t] = (X[0:t+M,:].T).dot(X[0:t+M,:])/(t+M)
+    for t in range(M,T-M):
+        S[t] = (X[t-M:t+M,:].T).dot(X[t-M:t+M,:])/(2*M+1)
+    for t in range(T-M,T):
+        S[t] = (X[t:-1,:].T).dot(X[t:-1,:])/((T-t)+M)
+        
+    return S
+        
+    
+    
 
 """
 def grid_search(model, y, G_true, lam1s, lam2s, tol=1e-4, max_iter=500,

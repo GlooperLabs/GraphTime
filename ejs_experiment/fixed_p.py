@@ -14,7 +14,7 @@ import sys
 #sys.path.append('../')
 from graphtime import *
 from graphtime.simulate import *
-from graphtime.utils import get_edges, get_change_points, plot_data_with_cps
+from graphtime.utils import get_edges, get_change_points, plot_data_with_cps, kernel_smooth
 
 
 #sigma = np.load('data/sigma.npy')
@@ -30,8 +30,10 @@ eps = 0.000001 # Edge threshold epsilon
 #change_points = get_change_points(sigma_inv, eps)
 
 DGS = DynamicGraphicalModel(P, seed=2)
-DGS.generate_graphs(n_edges_list=[S, S, S]);
-y = DGS.sample(T, changepoints=cps);
+DGS.generate_graphs(n_edges_list=[S, S, S])
+y = DGS.sample(T, changepoints=cps)
+
+S = kernel_smooth(y, 10)
 
 #DGS.draw();
-#plot_data_with_cps(y, cps, ymin=-5, ymax=5)
+plot_data_with_cps(y, cps, ymin=-5, ymax=5)
