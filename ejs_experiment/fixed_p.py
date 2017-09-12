@@ -19,21 +19,35 @@ from graphtime.utils import get_edges, get_change_points, plot_data_with_cps, ke
 
 #sigma = np.load('data/sigma.npy')
 #sigma_inv = np.load('data/sigma_inv.npy')
-T = 90 # Steps
-cps = [30,60]   # Location of changepoints
+T = [150,450,900] # Steps
+# The location of changepoints is given as a proportion of T
+cp_rel = [0.33,0.66]
+#cps = [150,300]   # Location of changepoints
 K = len(cps)    # Number of changepoints
-P = 10 # Variables
-S = 5 # Active Edges
+P = 4 # Variables
+n = 2 # Active Edges
 eps = 0.000001 # Edge threshold epsilon
-
+Nexp = len(T)   # Number of experimnents to perform
 #edges = get_edges(sigma_inv[0], eps)
 #change_points = get_change_points(sigma_inv, eps)
 
 DGS = DynamicGraphicalModel(P, seed=2)
-DGS.generate_graphs(n_edges_list=[S, S, S])
-y = DGS.sample(T, changepoints=cps)
+DGS.generate_graphs(n_edges_list=[n, n, n])
 
-S = kernel_smooth(y, 10)
-
-#DGS.draw();
-plot_data_with_cps(y, cps, ymin=-5, ymax=5)
+for nexp in range(Nexp):
+    Tn = T[nexp]
+    y = DGS.sample(Tn, changepoints=[np.ceil(i*Tn) for i in cp_rel])
+    
+    # The lambdas will be selected from a grid.
+    # Need to give GFGL a path option to evaluate multiple lambdas...
+    lam1 = 0.1;
+    lam2 = 8;
+    
+    gfgl = GroupFusedGraphLasso(lambda1=lam1,lambda2=lam2,verbose=True,
+                                tol=1e-4, max_iter=500,pre_smooth=10)
+    gfgl.fit(y)
+    
+    cp_hist = get_change_points(gfgl.sparse_Theta, 1e-2)
+    change_points = [i for i, cp in enumerate(cp_hist) if cp > 0]
+    plot_data_with_cps(y, cp_hist, ymin=-5, ymax=5)
+    plot_edge_dif(gfgl.sparse_Theta)

@@ -13,6 +13,36 @@ def get_change_points(Thetas, eps):
            np.allclose(Thetas[i-1], Thetas[i], atol=eps, rtol=0)]
     return cps
 
+def get_edge_dif(Thetas,diag=False):
+    """A function to summarise variation in the estimated matrices
+    """
+    T = Thetas.shape[0]
+    P = Thetas.shape[1]
+    dif = np.zeros(T)
+    if diag==False:
+        for t in range(1,T):
+            dif[t] = np.linalg.norm(np.extract(1 - np.eye(P),
+                                    Thetas[t]-Thetas[t-1]),2)         
+    else:
+        for t in range(1,T):
+            dif[t] = np.linalg.norm(Thetas[t]-Thetas[t-1],'fro')
+    return dif
+
+def plot_edge_dif(Thetas,ymin=None,ymax=None):
+    
+    dif_off_diag = get_edge_dif(Thetas,diag=False)
+    dif_diag = get_edge_dif(Thetas,diag=True)
+    
+    ymin = np.min(dif_diag) if not ymin else ymin
+    ymax = np.max(dif_diag) if not ymax else ymax
+    
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    ax.plot(dif_off_diag, alpha=0.5)
+    ax.plot(dif_diag,alpha=0.5)
+    ax.set_ylabel('Precision Diff')
+    ax.set_xlabel('Timestep')
+    return fig
 
 def plot_data_with_cps(data, cps, ymin=None, ymax=None):
     ymin = np.min(data) if not ymin else ymin

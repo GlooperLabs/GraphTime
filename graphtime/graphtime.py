@@ -45,6 +45,7 @@ class DynamicGraphLasso:
         self.center = center
         self.init_sol = init_sol
         self.verbose = verbose
+        self.pre_smooth = pre_smooth
 
     def fit(self, X):
         if self.center:
