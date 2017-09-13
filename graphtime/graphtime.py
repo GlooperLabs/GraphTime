@@ -97,7 +97,8 @@ class DynamicGraphLasso:
         eps_dual = [self.tol + 1]
 
         n_iter = 0
-        while (eps_primal[n_iter] > self.tol and eps_dual[n_iter] > self.tol
+        # FIXME : Do we want convergence criteria both to be met??
+        while (eps_primal[n_iter] > self.tol or eps_dual[n_iter] > self.tol
                and n_iter < self.max_iter):
 
             # Copy old primal estimate to check convergence (later)
@@ -233,6 +234,7 @@ class DynamicGraphLasso:
             A_true[t] = A_true[t] - np.eye(P)
             
         [self.Favg, self.F] = graph_F_score_dynamic(A_est, A_true, beta)
+
 
     def smooth(self, W, T, P, V1, V2, dW):
         raise NotImplementedError

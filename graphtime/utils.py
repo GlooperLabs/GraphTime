@@ -33,11 +33,14 @@ def binary_class_eval(est,truth):
 def graph_F_score(G_est,G_true,beta):
     """Reports the F_beta score of a graph estimate"""
     P = G_est.shape[0]
-    Gest = np.extract(1 - np.eye(P),G_est)
-    Gtrue = np.extract(1 - np.eye(P),G_true)
+    iu1 = np.triu_indices(P,1)  # Get upper off-diag components
+    Gest = G_est[iu1]
+    Gtrue = G_true[iu1]
+    #Gest = np.extract(1 - np.eye(P),G_est)
+    #Gtrue = np.extract(1 - np.eye(P),G_true)
     [tp,fp,tn,fn]=binary_class_eval(Gest,Gtrue)
-    bottom = ( ((1 + (beta ** 2)) * tp ) + ((beta ** 2) * fn) + fp)
-    top = (1 + ((beta **2) * tp) )
+    bottom = ((1 + (beta ** 2)) * tp ) + ((beta ** 2) * fn) + fp
+    top = (1 + (beta **2)) * tp
     if bottom != 0:
         F = top/bottom
     else:

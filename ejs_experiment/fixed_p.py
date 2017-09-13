@@ -25,7 +25,7 @@ cp_rel = [0.33,0.66]
 #cps = [150,300]   # Location of changepoints
 K = len(cp_rel)    # Number of changepoints
 P = 10 # Variables
-n = 5 # Active Edges
+n = 10 # Active Edges
 eps = 0.000001 # Edge threshold epsilon
 Nexp = len(T)   # Number of experimnents to perform
 #edges = get_edges(sigma_inv[0], eps)
@@ -46,8 +46,10 @@ for nexp in range(Nexp):
     # Need to give GFGL a path option to evaluate multiple lambdas...
     Nl1 = 10
     Nl2 = 10
-    lam1 = np.logspace(1,-1,Nl1)
-    lam2 = np.logspace(1,0,Nl2)
+    lam1 = np.linspace(1,2,Nl1)
+    lam2 = np.linspace(1,2,Nl2)
+    #lam1 = np.logspace(1,-1,Nl1)
+    #lam2 = np.logspace(1,0,Nl2)
     path = []
     k=0
     for i in range(len(lam1)):
