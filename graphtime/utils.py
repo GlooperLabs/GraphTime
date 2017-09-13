@@ -7,6 +7,54 @@ def get_edges(G, eps):
     return [(i, j) for i in range(P-1) for j in range(i+1, P)
             if abs(G[i, j]) >= eps]
 
+def binary_class_eval(est,truth):
+    """ Reports true positive, false positive, false negative and true negatives.
+    Input is two lists of equal length populated by one or zero"""
+    TP = 0
+    FP = 0
+    TN = 0
+    FN = 0
+
+    for i in range(len(est)): 
+        if truth[i]==est[i]==1:
+           TP += 1
+    for i in range(len(est)): 
+        if est[i]==1 and truth[i]!=est[i]:
+           FP += 1
+    for i in range(len(est)): 
+        if truth[i]==est[i]==0:
+           TN += 1
+    for i in range(len(est)): 
+        if est[i]==0 and truth[i]!=est[i]:
+           FN += 1
+
+    return(TP, FP, TN, FN)
+
+def graph_F_score(G_est,G_true,beta):
+    """Reports the F_beta score of a graph estimate"""
+    P = G_est.shape[0]
+    Gest = np.extract(1 - np.eye(P),G_est)
+    Gtrue = np.extract(1 - np.eye(P),G_true)
+    [tp,fp,tn,fn]=binary_class_eval(Gest,Gtrue)
+    bottom = ( ((1 + (beta ** 2)) * tp ) + ((beta ** 2) * fn) + fp)
+    top = (1 + ((beta **2) * tp) )
+    if bottom != 0:
+        F = top/bottom
+    else:
+        F = 0
+        
+    return F
+
+def graph_F_score_dynamic(G_est,G_true,beta):
+    """Dynamic version of graph_F_score. Produces an average F_score and 
+    time-varying F_score"""
+    T = G_est.shape[0]
+    F = np.zeros([T])
+    for t in range(T):
+        F[t] = graph_F_score(G_est[t],G_true[t],beta)
+    
+    Favg = np.mean(F)
+    return(Favg, F)
 
 def get_change_points(Thetas, eps):
     cps = [i for i in range(1, len(Thetas)) if not
@@ -58,6 +106,24 @@ def plot_data_with_cps(data, cps, ymin=None, ymax=None):
     ax.set_ylim([ymin, ymax])
     return fig
 
+def visualise_path(path, lam1, lam2, metric='Fscore'):
+    """ Visualise the solution path of estimator in terms of contour plot"""
+    k=0
+    Z = np.zeros([len(lam1),len(lam2)])
+    # Reshape path to match lambda grid
+    for i in range(len(lam1)):
+        for j in range(len(lam2)):
+            if metric=='Fscore':
+                Z[i,j] = path[k].Favg
+                k=k+1
+                            
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    cs = ax.contourf(lam1,lam2,Z)
+    ax.set_ylabel('Lambda 2')
+    ax.set_xlabel('Lambda 1')
+    fig.colorbar(cs)
+    return fig
 
 def soft_threshold(X, thresh):
     """Proximal mapping of l1-norm results in soft-thresholding. Therefore, it is required

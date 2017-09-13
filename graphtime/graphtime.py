@@ -1,5 +1,6 @@
 import numpy as np
-from graphtime.utils import soft_threshold, scale_standard, kernel_smooth
+from graphtime.utils import (soft_threshold, scale_standard, kernel_smooth,
+get_change_points, graph_F_score_dynamic)
 
 
 class DynamicGraphLasso:
@@ -65,14 +66,14 @@ class DynamicGraphLasso:
             # Kernel pre-smoothing if required...
             S = kernel_smooth(X, self.pre_smooth)
             
-        
         # differencing aux variable
         W = np.zeros((T - 1, P, P))
 
-        # Initialise Theta (Primal)
-        if self.init_sol:
-            if self.init_sol.shape == S.shape:
-                U = self.init_sol
+        # Initialise Primal, Aux, and Dual variables
+        if self.init_sol != None:
+            if self.init_sol[0].shape == S.shape:
+                # Unpack the initial solution
+                [U,V1,V2,W,dV1,dV2,dW] = self.init_sol
             else:
                 raise ValueError('Initial solution should match problem dimensions')
         else:
@@ -80,14 +81,16 @@ class DynamicGraphLasso:
             for t in range(T):
                 U[t] = np.eye(P)
 
-        # change auxiliaries
-        V1 = U.copy()
-        V2 = U[:T - 1].copy()
-
-        # init dual variables
-        dV1 = V1.copy()
-        dV2 = V2.copy()
-        dW = W.copy()
+            # change auxiliaries
+            V1 = U.copy()
+            V2 = U[:T - 1].copy()
+    
+            # init dual variables
+            # Do we just copy aux variables...or set to zero??
+            dV1 = np.zeros((T, P, P))
+            dV2 = np.zeros((T-1, P, P))
+            dW = np.zeros((T-1, P, P))
+        
 
         # init convergence criteria
         eps_primal = [self.tol + 1]
@@ -181,7 +184,8 @@ class DynamicGraphLasso:
             eps_primal.append(epsP1)
 
             if self.verbose:
-                print('iteration', n_iter, 'Prime: ', eps_primal[-1], ' Dual: ', eps_dual[-1])
+                if n_iter%20==0:
+                    print('iteration', n_iter, 'Prime: ', eps_primal[-1], ' Dual: ', eps_dual[-1])
 
             n_iter += 1
 
@@ -189,9 +193,46 @@ class DynamicGraphLasso:
         self.eps_primal = eps_primal
         self.eps_dual = eps_dual
         self.Theta = V1
+        # Convert to sparse solution..
         self.sparse_Theta = self.convert_to_sparse(U, W)
+        # Estimate changepoints from solution
+        self.changepoints = get_change_points(self.sparse_Theta,1e-2)
+        # Store the final solution and dual variables (in case of warm start)
+        self.sol = [U,V1,V2,W,dV1,dV2,dW]
 
         return self
+    
+    def evaluate(self, X, GT_Thetas, beta=1):
+        """Evaluates the estimated graphical model. Produces various metrics 
+        either in relation to a true set of precision matrices, or in terms of 
+        in sample performance measures c.f. AIC/BIC
+        
+        Parameters
+        ----------
+        X : NDarray
+            raw data (Time-points x n_vertices)
+        GT_Thetas : 3D NDarray (Time-points x n_vertices x n_vertices)
+            ground truth precision matrices
+        beta : int
+            Parameter for F score, i.e. for F_1, set beta=1
+        """
+        # FIXME : this doesnt work need to convert precision to mask...
+        thresh = 1e-3
+        
+        A_est = np.copy(self.sparse_Theta) 
+        #A_est[abs(A_est) <= thresh ] = 1
+        A_est[abs(A_est)>= thresh ] = 1
+        A_est[abs(A_est)< thresh ] = 0
+        A_true = np.copy(GT_Thetas)
+        A_true[A_true !=0] = 1
+        T = A_true.shape[0]
+        P = A_true.shape[1]
+        # Remove diagonal components (adjacency not precision)
+        for t in range(T):
+            A_est[t] = A_est[t] - np.eye(P)
+            A_true[t] = A_true[t] - np.eye(P)
+            
+        [self.Favg, self.F] = graph_F_score_dynamic(A_est, A_true, beta)
 
     def smooth(self, W, T, P, V1, V2, dW):
         raise NotImplementedError

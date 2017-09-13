@@ -80,7 +80,7 @@ class DynamicGraphicalModel:
         self.graphs = [ErdosRenyiPrecisionGraph(self.n_vertices, n_es)
                        for n_es in n_edges]
 
-    def sample(self, T, changepoints=None, uniform=True, ret_cps=False, use_seed=True):
+    def sample(self, T, changepoints=None, uniform=True, ret_cps=False, ret_dgm=False, use_seed=True):
         """Sample from the created ER Precision graphs. If uniform,
         each graph will approximately generate the same amount of
         samples depending on T. Otherwise a list of changepoints
@@ -99,12 +99,14 @@ class DynamicGraphicalModel:
             amount of samples (last one might have less dep. on T)
         ret_cps : bool
             whether to return list of true changepoints or not
+        ret_dgm : bool
+            whether to set return a TxPxP dynamic graph for Theta ground truth
         use_seed : bool
             indicates if seed shall be used
 
         Returns
         -------
-        S: 2D ndarray, shape (timesteps, vertices)
+        X: 2D ndarray, shape (timesteps, vertices)
             Sample of length T from the models graphs
         changepoints : optional, list[int]
             list of actual changepoints
@@ -125,14 +127,24 @@ class DynamicGraphicalModel:
         if use_seed and self.seed is not None:
             np.random.seed(self.seed)
 
-        S = np.zeros((T, self.n_vertices))
-        mu = np.zeros(self.n_vertices)
+        P = self.n_vertices
+        X = np.zeros((T, P))
+        mu = np.zeros(P)
+        if ret_dgm:
+            Thetas = np.zeros([T, P, P])
         for i, g in enumerate(self._graph_indices(T, changepoints)):
-            S[i] = np.random.multivariate_normal(mu, self.graphs[g].Sigma)
-
-        if ret_cps:
-            return S, list(changepoints)
-        return S
+            X[i] = np.random.multivariate_normal(mu, self.graphs[g].Sigma)
+            if ret_dgm:
+                Thetas[i] = self.graphs[g].Theta
+            
+        if ret_cps and ret_dgm:
+            return X, list(changepoints),Thetas
+        elif ret_cps and not ret_dgm:   
+            return X, list(changepoints)
+        elif ret_dgm and not ret_cps:
+            return X, Thetas
+        else:
+            return X
 
     @staticmethod
     def uniform_changepoints(T, n_inter):
