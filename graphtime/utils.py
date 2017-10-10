@@ -58,6 +58,24 @@ def graph_F_score_dynamic(G_est,G_true,beta):
     
     Favg = np.mean(F)
     return(Favg, F)
+    
+def get_likelihood(Theta_est,Theta_true):
+    """ Calculate likelihood for dynamic GGM """
+    T = len(Theta_est)
+    L=0
+    for t in range(T):
+        L = L + (np.log(np.linalg.det(Theta_est[t])) - 
+                 np.trace(np.linalg.inv(Theta_true[t]),Theta_est[t]))
+    # Normalise Likelihood for data points
+    L = L/T
+    return L
+    
+def get_BIC(Theta_est,Theta_true,dof):
+    """ Calculates BIC based on estimate and ground-truth precision matrices
+    This does not calculate dof, you need to pass it"""
+    T = Theta_est.shape[0]
+    BIC = -2*get_likelihood(Theta_est,Theta_true) + dof*np.log(T)
+    return BIC
 
 def get_change_points(Thetas, eps):
     cps = [i for i in range(1, len(Thetas)) if not
@@ -119,6 +137,10 @@ def visualise_path(path, lam1, lam2, metric='Fscore'):
             if metric=='Fscore':
                 Z[i,j] = path[k].Favg
                 k=k+1
+            elif metric=='BIC':
+                Z[i,j] = path[k].BIC
+            elif metric=='CPerr':
+                Z[i,j] = path[k].CPerr
                             
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)

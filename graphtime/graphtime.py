@@ -98,7 +98,7 @@ class DynamicGraphLasso:
 
         n_iter = 0
         # FIXME : Do we want convergence criteria both to be met??
-        while (eps_primal[n_iter] > self.tol or eps_dual[n_iter] > self.tol
+        while ( (eps_primal[n_iter] > self.tol or eps_dual[n_iter] > self.tol )
                and n_iter < self.max_iter):
 
             # Copy old primal estimate to check convergence (later)
