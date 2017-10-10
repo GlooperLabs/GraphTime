@@ -59,22 +59,37 @@ def graph_F_score_dynamic(G_est,G_true,beta):
     Favg = np.mean(F)
     return(Favg, F)
     
-def get_likelihood(Theta_est,Theta_true):
+def get_likelihood(Theta_est,Sigma):
     """ Calculate likelihood for dynamic GGM """
     T = len(Theta_est)
     L=0
     for t in range(T):
         L = L + (np.log(np.linalg.det(Theta_est[t])) - 
-                 np.trace(np.linalg.inv(Theta_true[t]),Theta_est[t]))
+                 np.trace( Sigma[t].dot(Theta_est[t]) ) )
     # Normalise Likelihood for data points
     L = L/T
     return L
+
+def get_CPerr(cp_est,cp_true):
+    """ Finds minimax cp error as per Kolar/Xing etc """
+    Ktrue = len(cp_true)
+    Kest = len(cp_est)
+    min_err = 10000*np.ones(Ktrue)  # Set min error to be intially large
+    for k in range(Ktrue):
+        # Find closest estimate to truth k
+        for l in range(Kest):
+            err = np.abs(cp_est[l]-cp_true[k])
+            if err<min_err[k]:
+                min_err[k] = err
+        
+    return min_err.max()
+                
     
-def get_BIC(Theta_est,Theta_true,dof):
+def get_BIC(Theta_est,Sigma,dof):
     """ Calculates BIC based on estimate and ground-truth precision matrices
     This does not calculate dof, you need to pass it"""
     T = Theta_est.shape[0]
-    BIC = -2*get_likelihood(Theta_est,Theta_true) + dof*np.log(T)
+    BIC = -2*get_likelihood(Theta_est,Sigma) + dof*np.log(T)
     return BIC
 
 def get_change_points(Thetas, eps):

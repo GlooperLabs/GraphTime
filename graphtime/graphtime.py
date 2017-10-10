@@ -1,6 +1,6 @@
 import numpy as np
 from graphtime.utils import (soft_threshold, scale_standard, kernel_smooth,
-get_change_points, graph_F_score_dynamic)
+get_change_points, graph_F_score_dynamic, get_likelihood, get_BIC, get_CPerr)
 
 
 class DynamicGraphLasso:
@@ -200,10 +200,11 @@ class DynamicGraphLasso:
         self.changepoints = get_change_points(self.sparse_Theta,1e-2)
         # Store the final solution and dual variables (in case of warm start)
         self.sol = [U,V1,V2,W,dV1,dV2,dW]
+        self.Shat = S  # Store the empirical covariance estimate for this run
 
         return self
     
-    def evaluate(self, X, GT_Thetas, beta=1):
+    def evaluate(self, X, GT_Thetas=None, beta=1):
         """Evaluates the estimated graphical model. Produces various metrics 
         either in relation to a true set of precision matrices, or in terms of 
         in sample performance measures c.f. AIC/BIC
@@ -224,21 +225,40 @@ class DynamicGraphLasso:
         #A_est[abs(A_est) <= thresh ] = 1
         A_est[abs(A_est)>= thresh ] = 1
         A_est[abs(A_est)< thresh ] = 0
-        A_true = np.copy(GT_Thetas)
-        A_true[A_true !=0] = 1
-        T = A_true.shape[0]
-        P = A_true.shape[1]
-        # Remove diagonal components (adjacency not precision)
-        for t in range(T):
-            A_est[t] = A_est[t] - np.eye(P)
-            A_true[t] = A_true[t] - np.eye(P)
+        
+        # If we pass the ground-truth structure
+        if GT_Thetas != None:
+            A_true = np.copy(GT_Thetas)
+            A_true[A_true !=0] = 1
+            T = A_true.shape[0]
+            P = A_true.shape[1]
+            Sigma_true = np.zeros([T,P,P])
+            # Remove diagonal components (adjacency not precision)
+            for t in range(T):
+                A_est[t] = A_est[t] - np.eye(P)
+                A_true[t] = A_true[t] - np.eye(P)
+                Sigma_true[t] = np.linalg.inv(GT_Thetas[t])
+    
+            [self.Favg, self.F] = graph_F_score_dynamic(A_est, A_true, beta)
+            self.OracleLike = get_likelihood(self.sparse_Theta, Sigma_true)
+            true_cps = get_change_points(GT_Thetas,1e-2)
+            self.CPerr = get_CPerr(self.changepoints,true_cps)
             
-        [self.Favg, self.F] = graph_F_score_dynamic(A_est, A_true, beta)
-
+        # ------
+        # In sample measures.. (no GT required)
+        self.Like = get_likelihood(self.sparse_Theta,self.Shat)
+        # DOF is automatically calculated depending on smoothing type GFGL/IFGL
+        dof = self.degrees_of_freedom(thresh)   
+        self.BIC = get_BIC(self.sparse_Theta,self.Shat,dof)
+        
 
     def smooth(self, W, T, P, V1, V2, dW):
         raise NotImplementedError
 
+    def degrees_of_freedom(self,thresh):
+        # This is estimator specifc as per smoothing..
+        raise NotImplementedError
+        
     @staticmethod
     def convert_to_sparse(U, W):
         T, P, _ = U.shape
@@ -258,6 +278,35 @@ class GroupFusedGraphLasso(DynamicGraphLasso):
             FGammaN = np.linalg.norm(Gamma, ord='fro')
             # perform projection
             W[t - 1] = (Gamma / FGammaN) * np.maximum(FGammaN - lamgw, 0)
+            
+    def degrees_of_freedom(self,thresh):
+        # Degrees of freedom based on GFGL solution (uses auxilary variable)
+        # According to Vaiter et al 2012.
+        
+        [U,V1,V2,W,dV1,dV2,dW] = self.sol
+        T, P, _ = U.shape
+        GammaOD = np.zeros(W.shape)  # Gamma should be relating to differences
+        dof=0
+        for t in range(1,T):
+            Gamma = V1[t] - V2[t - 1] + dW[t - 1]
+            GammaOD[t-1] = Gamma - np.eye(P) * Gamma
+            
+        for t in range(T):
+            if np.linalg.norm(W[t],ord='fro') > thresh:
+                # Compute complete J
+                # FIXME: Need to compute zero norm for matrix...not included in np
+                sk = np.linalg.norm(GammaOD[t],ord=0)
+                cor = (self.lambda2 * 
+                        ( (sk-1)/np.linalg.norm(GammaOD[t],ord='fro') ) )
+                dof = dof + (2*sk-cor)
+                
+        # FIXME: Do we need to add a term to account for complexity in first
+        # block?
+        dof = dof + np.linalg.norm(U[0],ord=0)
+        
+        return dof
+                
+        
 
 
 class IndepFusedGraphLasso(DynamicGraphLasso):

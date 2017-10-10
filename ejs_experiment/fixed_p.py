@@ -47,7 +47,7 @@ for nexp in range(Nexp):
     Nl1 = 10
     Nl2 = 5
     lam1 = np.linspace(1, 0.01,Nl1)
-    lam2 = np.linspace(90,60,Nl2)
+    lam2 = np.linspace(2,1,Nl2)
     #lam1 = np.logspace(1,-1,Nl1)
     #lam2 = np.logspace(1,0,Nl2)
     path = []
@@ -63,7 +63,7 @@ for nexp in range(Nexp):
                 
             # Don't pre-smooth??
             gfgl = GroupFusedGraphLasso(lambda1=lam1[i], lambda2=lam2[j], verbose=True,
-                                        tol=1e-4, max_iter=500, pre_smooth=None, init_sol=Isol)
+                                        tol=1e-4, max_iter=500, pre_smooth=10, init_sol=Isol)
             gfgl.fit(y) # Main estimation routine...adds sparse_Theta and changepoints
             gfgl.evaluate(y,GT_Thetas) # Computes summary statistics of solution
             path.append(gfgl)    # Append object to path
