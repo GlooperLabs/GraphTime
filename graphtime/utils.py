@@ -157,9 +157,10 @@ def visualise_path(path, lam1, lam2, metric='Fscore'):
             elif metric=='CPerr':
                 Z[i,j] = path[k].CPerr
                             
+    print('hello')
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
-    cs = ax.contourf(lam1,lam2,Z)
+    cs = ax.contourf(lam1,lam2,Z.T)
     ax.set_ylabel('Lambda 2')
     ax.set_xlabel('Lambda 1')
     fig.colorbar(cs)

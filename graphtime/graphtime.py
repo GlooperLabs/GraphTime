@@ -291,18 +291,18 @@ class GroupFusedGraphLasso(DynamicGraphLasso):
             Gamma = V1[t] - V2[t - 1] + dW[t - 1]
             GammaOD[t-1] = Gamma - np.eye(P) * Gamma
             
-        for t in range(T):
+        for t in range(T-1):
             if np.linalg.norm(W[t],ord='fro') > thresh:
                 # Compute complete J
                 # FIXME: Need to compute zero norm for matrix...not included in np
-                sk = np.linalg.norm(GammaOD[t],ord=0)
+                sk = np.linalg.norm(GammaOD[t].flatten(),ord=0)
                 cor = (self.lambda2 * 
                         ( (sk-1)/np.linalg.norm(GammaOD[t],ord='fro') ) )
                 dof = dof + (2*sk-cor)
                 
         # FIXME: Do we need to add a term to account for complexity in first
         # block?
-        dof = dof + np.linalg.norm(U[0],ord=0)
+        dof = dof + np.linalg.norm(U[0].flatten(),ord=0)
         
         return dof
                 

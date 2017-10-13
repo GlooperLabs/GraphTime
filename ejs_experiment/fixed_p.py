@@ -11,6 +11,7 @@ increasing data T. The number and relative position of changepoints is fixed.
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
+import pickle
 #sys.path.append('../')
 from graphtime import *
 from graphtime.simulate import *
@@ -69,6 +70,17 @@ for nexp in range(Nexp):
             path.append(gfgl)    # Append object to path
             k=k+1   
             
-    visualise_path(path,lam1,lam2,metric='Fscore')
-#plot_data_with_cps(y, cp_hist, ymin=-5, ymax=5)
-#plot_edge_dif(gfgl.sparse_Theta)
+# Create dictionary which summarises the solution            
+exp_dict = {}
+exp_dict['path'] = path
+exp_dict['DGS'] = DGS
+exp_dict['y'] = y
+exp_dict['GT_Thetas'] = GT_Thetas
+exp_dict['lam1'] = lam1
+exp_dict['lam2'] = lam2
+
+# Write to file
+with open('sol_file.pkl', 'wb') as output:
+    pickle.dump(exp_dict, output, pickle.HIGHEST_PROTOCOL)
+    
+
