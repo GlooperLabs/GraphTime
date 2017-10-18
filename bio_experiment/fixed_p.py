@@ -64,7 +64,7 @@ for nexp in range(Nexp):
                 
             # Don't pre-smooth??
             gfgl = GroupFusedGraphLasso(lambda1=lam1[i], lambda2=lam2[j], verbose=True,
-                                        tol=1e-4, max_iter=500, pre_smooth=10, init_sol=Isol)
+                                        tol=1e-4, max_iter=500, pre_smooth=30, init_sol=Isol)
             gfgl.fit(y) # Main estimation routine...adds sparse_Theta and changepoints
             gfgl.evaluate(y,GT_Thetas) # Computes summary statistics of solution
             path.append(gfgl)    # Append object to path
