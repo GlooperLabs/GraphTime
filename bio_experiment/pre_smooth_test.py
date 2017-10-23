@@ -66,7 +66,7 @@ for n in range(Nexp):
             end_time = time.time()
             dt_smooth[n,i,j] = end_time-start_time
             
-            gfgl.evaluate(y,GT_Thetas) # Computes summary statistics of solution
+            gfgl.evaluate(GT_Thetas) # Computes summary statistics of solution
             path_smooth.append(gfgl)    # Append object to path
             k_smooth=k_smooth+1   
             
@@ -84,7 +84,7 @@ for n in range(Nexp):
             end_time = time.time()
             dt_raw[n,i,j] = end_time-start_time
             
-            gfgl.evaluate(y,GT_Thetas) # Computes summary statistics of solution
+            gfgl.evaluate(GT_Thetas) # Computes summary statistics of solution
             path_raw.append(gfgl)    # Append object to path
             k_raw=k_raw+1
             

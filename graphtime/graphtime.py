@@ -49,22 +49,27 @@ class DynamicGraphLasso:
         self.pre_smooth = pre_smooth
 
     def fit(self, X):
-        if self.center:
-            X = scale_standard(X)
-        if type(self) == DynamicGraphLasso:
-            subs = ', '.join([c.__name__ for c in
-                              DynamicGraphLasso.__subclasses__()])
-            raise NotImplementedError('Baseclass! - use ' +  subs)
-        T, P = X.shape
-        S = np.zeros((T, P, P))
-        if self.pre_smooth == None:
-            # don't use pre-smoothing
-            for t in range(T):
-                x = X[t].reshape(-1, 1)
-                S[t] = x.dot(x.T)   # outer product
+        # Get shape of the input (if X is of shape TxPxP then assume covariance input)
+        if (X.ndim == 3):
+            S = X
+            T, P, _ = X.shape
         else:
-            # Kernel pre-smoothing if required...
-            S = kernel_smooth(X, self.pre_smooth)
+            if self.center:
+                X = scale_standard(X)
+            if type(self) == DynamicGraphLasso:
+                subs = ', '.join([c.__name__ for c in
+                                  DynamicGraphLasso.__subclasses__()])
+                raise NotImplementedError('Baseclass! - use ' +  subs)
+            T, P = X.shape
+            S = np.zeros((T, P, P))
+            if self.pre_smooth == None:
+                # don't use pre-smoothing
+                for t in range(T):
+                    x = X[t].reshape(-1, 1)
+                    S[t] = x.dot(x.T)   # outer product
+            else:
+                # Kernel pre-smoothing if required...
+                S = kernel_smooth(X, self.pre_smooth)
             
         # differencing aux variable
         W = np.zeros((T - 1, P, P))
@@ -185,7 +190,7 @@ class DynamicGraphLasso:
             eps_primal.append(epsP1)
 
             if self.verbose:
-                if n_iter%100==0:
+                if n_iter%20==0:
                     print('iteration', n_iter, 'Prime: ', eps_primal[-1], ' Dual: ', eps_dual[-1])
 
             n_iter += 1
@@ -204,15 +209,13 @@ class DynamicGraphLasso:
 
         return self
     
-    def evaluate(self, X, GT_Thetas=None, beta=1):
+    def evaluate(self, GT_Thetas=None, beta=1):
         """Evaluates the estimated graphical model. Produces various metrics 
         either in relation to a true set of precision matrices, or in terms of 
         in sample performance measures c.f. AIC/BIC
         
         Parameters
         ----------
-        X : NDarray
-            raw data (Time-points x n_vertices)
         GT_Thetas : 3D NDarray (Time-points x n_vertices x n_vertices)
             ground truth precision matrices
         beta : int
